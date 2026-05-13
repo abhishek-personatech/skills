@@ -1,27 +1,34 @@
 ---
 name: phoenix-feature-planning
 description: >-
-  Turn raw feature requirements into a reviewed, agent-ready build plan for Phoenix
+  Turn raw feature requirements into a reviewed design document for Phoenix
   backend (phoenix) and frontend (phoenix-fe). Runs a clarification loop, requirement
-  summary, confirmation gate, then generates separate BE/FE implementation plans with
-  API integration details. Use when planning a feature, writing a build plan, technical
-  design, implementation approach, or when the user says phoenix-feature-planning,
+  summary, confirmation gate, then generates a design-level build plan (scope, API
+  contract, BE/FE breakdown) without code-audited paths. Use when planning a feature,
+  writing a design doc, technical design, or when the user says phoenix-feature-planning,
   feature build plan, or @phoenix-feature-planning.
 disable-model-invocation: true
 ---
 
-# Phoenix feature planning
+# Phoenix feature planning (design document)
 
-Produce a **reviewed, agent-executable build plan** from a raw requirement. Do not jump to implementation until the plan is approved.
+Produce a **reviewed design-level build plan** from a raw requirement. This skill does **not** require a repo to be open and does **not** produce code-audited file paths.
+
+**After design approval**, enrich with repo-specific implementation detail using:
+
+- `phoenix-be-implementation-plan` — open `phoenix` repo
+- `phoenix-fe-implementation-plan` — open `phoenix-fe` repo
+
+Do not jump to implementation until the **design plan** is approved and (optionally) repo-specific plans are enriched.
 
 ## Repositories
 
-| Layer | Repo | Guidelines |
-|-------|------|------------|
-| Backend | `phoenix` | Explore existing controllers, services, entities, migrations, and tests in-repo before proposing changes |
-| Frontend | `phoenix-fe` | Follow `CLAUDE.md`; for implementation/testing after planning, see `phoenix-fe-feature` and `.cursor/skills/testing/SKILL.md` |
+| Layer | Repo | This skill (design only) | Repo-specific enrichment |
+|-------|------|--------------------------|--------------------------|
+| Backend | `phoenix` | Logical API + data model + work breakdown | `phoenix-be-implementation-plan` |
+| Frontend | `phoenix-fe` | UX surfaces + integration approach + work breakdown | `phoenix-fe-implementation-plan` |
 
-This skill is **planning only**. It does not implement code.
+This skill is **planning only**. It does not implement code and does not require codebase access.
 
 ## Workflow (strict phases)
 
@@ -83,7 +90,7 @@ Repeat until requirements are sufficiently clear:
 1. Incorporate user answers.
 2. Publish a **short delta summary** (what changed since last turn).
 3. Ask the **next** clarification questions — do not re-ask resolved items.
-4. If the codebase is open or paths are known, **explore relevant code** in `phoenix` / `phoenix-fe` to ground questions (existing endpoints, similar features, naming patterns). State what you inspected.
+4. If the codebase happens to be open, you may skim it to improve **questions** — but do not block on code access. Do not present code paths as verified in this phase.
 
 **Stop clarifying when:** no material ambiguities remain, or the user says to proceed.
 
@@ -130,9 +137,9 @@ Then ask: **"Confirm this summary so I can draft the build plan, or tell me what
 
 ---
 
-### Phase 4: Build plan draft
+### Phase 4: Design document draft
 
-After confirmation, create **one markdown file** using [plan-template.md](plan-template.md).
+After confirmation, create **one markdown file** using [plan-template.md](plan-template.md). Set document **type** to `Design` and **implementation status** to `Pending repo enrichment`.
 
 **Output location** (default):
 
@@ -142,16 +149,14 @@ After confirmation, create **one markdown file** using [plan-template.md](plan-t
 
 Tell the user the file path and ask for review.
 
-**Plan quality bar** — each section must be concrete enough that **another agent** can implement without guessing:
+**Design document quality bar** — concrete at the **product/engineering design** level:
 
-- Name files, modules, layers, and patterns to follow
-- List API endpoints with method, path, request/response shape, auth, errors
-- Order work into sequenced steps with dependencies
-- Call out migrations, tests, and verification per layer
-- Separate **Backend plan** and **Frontend plan** clearly
-- Frontend must include a dedicated **API integration** section tied to backend contracts
-
-If repos are available locally, anchor paths to real locations (e.g. `registration/.../ProgramAgendaController.java`). If not, use `TBD — verify in repo` and note search hints.
+- Clear scope, acceptance criteria, assumptions
+- Logical API contract (method, path, payloads, auth, errors) — paths may be provisional
+- Separate **Backend design** and **Frontend design** sections
+- Ordered work breakdown without claiming verified file paths
+- Frontend **API integration approach** (which calls, when, error handling) tied to the shared contract
+- Mark code locations as `TBD — enrich with phoenix-be-implementation-plan / phoenix-fe-implementation-plan` unless explicitly verified in an open repo this turn
 
 ---
 
@@ -166,34 +171,30 @@ If repos are available locally, anchor paths to real locations (e.g. `registrati
 **On approval**, state:
 
 - Final file path
-- Suggested implementation order (typically BE contract → FE integration → E2E verification)
-- Which skills to use next (`phoenix-fe-feature`, repo testing skill, etc.)
+- Next step: run repo-specific enrichment skills before implementation
+- Suggested order: `phoenix-be-implementation-plan` in `phoenix` → `phoenix-fe-implementation-plan` in `phoenix-fe` → implement
 
 ---
 
 ## Interaction rules
 
-- **One phase at a time** — do not combine clarification with a full build plan in the same turn unless the user already confirmed a prior summary in the same thread.
+- **One phase at a time** — do not combine clarification with a full design doc in the same turn unless the user already confirmed a prior summary in the same thread.
 - **Prefer small question batches** over a single huge questionnaire.
 - **Summarize often** — after every 1–2 clarification rounds, show a compact running summary.
 - **No invented requirements** — label assumptions clearly; confirm before planning.
-- **No implementation** during this skill unless the user explicitly asks to start coding after plan approval.
-- **Keep BE and FE plans separate** inside the document (two major sections), with a shared API contract section the FE plan references.
+- **No implementation** during this skill unless the user explicitly asks to start coding after full planning is done.
+- **Keep BE and FE sections separate** inside the document, with a shared API contract section the FE section references.
+- **Do not pretend to know code paths** without repo access — stay at design level.
 
-## Handoff to implementation agents
-
-The approved plan should enable an implementation agent to:
-
-1. Read the **Backend plan** section and work in `phoenix` only.
-2. Read the **Frontend plan** + **API integration** sections and work in `phoenix-fe`.
-3. Execute steps in dependency order without re-deriving architecture.
-
-Recommend the user start implementation with:
+## Handoff after design approval
 
 ```text
-Implement [feature] per docs/feature-plans/<feature-slug>-build-plan.md.
-Backend first (or FE with mocked API if noted in plan).
-Use phoenix-fe-feature for FE implementation.
+Design approved: docs/feature-plans/<feature-slug>-build-plan.md
+
+Next:
+1. Open phoenix → @phoenix-be-implementation-plan — enrich Backend section
+2. Open phoenix-fe → @phoenix-fe-implementation-plan — enrich Frontend + API integration
+3. Implement using enriched plan + phoenix-fe-feature (FE) / repo patterns (BE)
 ```
 
 ## Additional resources

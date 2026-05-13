@@ -4,6 +4,8 @@
 |-------|-------|
 | **Ticket / ID** | [e.g. PTI-12345] |
 | **Status** | Draft \| In review \| Approved |
+| **Document type** | Design \| Design + Implementation |
+| **Implementation status** | Pending repo enrichment \| BE enriched \| FE enriched \| Ready to implement |
 | **Author** | [agent + user] |
 | **Repos** | `phoenix` (BE), `phoenix-fe` (FE) |
 | **Last updated** | [YYYY-MM-DD] |
