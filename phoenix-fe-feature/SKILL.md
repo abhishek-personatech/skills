@@ -3,12 +3,19 @@ name: phoenix-fe-feature
 description: >-
   Structure and evolve Phoenix FE features: thin index.tsx, service-first hooks,
   optional context, I18n/useCopies, stable render flow, integration tests.
+  Follow phoenix-fe CLAUDE.md for coding guidelines and the repo testing skill for tests.
   Use when building or refactoring Phoenix FE features, scaffolding feature
   folders (service.ts, types.ts, components/), implementing user-facing flows,
   or when the user says phoenix-fe-feature, FE feature development, or @phoenix-fe-feature.
 ---
 
 # Building a Phoenix FE feature
+
+## Repository guidelines (required)
+
+When working in `phoenix-fe`, read and follow **`CLAUDE.md`** at the repository root for coding guidelines, architecture patterns, and conventions. This skill adds feature-structure guardrails on top of `CLAUDE.md`; if anything conflicts, **`CLAUDE.md` wins**.
+
+For test cases, read and follow **`.cursor/skills/testing/SKILL.md`** in the `phoenix-fe` repository. Do not invent alternate testing conventions—use that skill for structure, render helpers, mocking, and coverage expectations.
 
 ## Core principle
 
@@ -50,7 +57,9 @@ Use this baseline unless the feature is tiny:
 
 ## Testing expectations
 
-For new user-facing feature flows, add integration-style tests close to user behavior:
+Follow **`.cursor/skills/testing/SKILL.md`** in the `phoenix-fe` repo for all test authoring.
+
+For new user-facing feature flows, ensure coverage includes at minimum:
 
 - loading state
 - success render (key sections/data shown)
@@ -58,15 +67,10 @@ For new user-facing feature flows, add integration-style tests close to user beh
 - primary interaction paths
 - critical edge case paths (empty optional data, gated sections, retry/unhide paths)
 
-Follow workspace testing conventions:
-
-- tests under `__test__/`
-- behavior-focused test names
-- minimal mocking at boundaries (prefer HTTP boundary over internal hook internals)
-
 ## Code quality checklist before PR
 
-- Feature matches `CLAUDE.md` patterns (service-first, copy usage, type placement).
+- Changes comply with **`CLAUDE.md`** at the repository root.
+- Tests comply with **`.cursor/skills/testing/SKILL.md`**.
 - No dead code / unused imports / stale TODOs in shipped paths.
 - All new public props and response fields typed.
 - Lints clean on edited files.
