@@ -1,77 +1,66 @@
 ---
 name: phoenix-scss
-description: Apply Phoenix frontend SCSS conventions for mixin usage, selector patterns, typography, and safe review adoption. Use when editing .scss/.css files in phoenix-fe or when the user asks for CSS/SCSS refactors, styling fixes, or review-comment styling updates.
-disable-model-invocation: true
+description: >-
+  Phoenix FE SCSS and CSS: BEM-style class names, CSS custom properties, tokens,
+  overrides, nesting, and global vs component styles. Use for any CSS change,
+  CSS fix, CSS update, stylesheet work, styling, SCSS/Sass edits, theme or
+  layout tweaks, class renames, or reviewing style-related PRs in this repo.
 ---
 
-# Phoenix SCSS Conventions
+# Phoenix FE — SCSS conventions
 
-Use this skill for SCSS/CSS work in `phoenix-fe`.
+## When this skill applies
 
-## Core rules
+Use whenever the work involves **CSS or SCSS**: changes, fixes, updates, refactors, new styles, design-token usage, BEM/class naming, custom properties, or style review—even if the user only says “CSS”, “styles”, or “scss”.
 
-- Prefer existing project mixins over raw CSS when equivalent mixins exist.
-- Keep selectors consistent with existing nesting and `&` patterns.
-- Do not introduce behavior/UX changes from review comments without explicit user approval.
-- Keep changes minimal and localized; avoid broad visual churn unless requested.
+## Where styles live
 
-## Mixin-first guidelines
+- **Global tokens and themes:** `src/assets/styles/` (`_theme_constant.scss`, `variables.scss`, `_mixin.scss`, etc.) — see `CLAUDE.md` for the full styling overview.
+- **Component / feature styles:** Co-locate `*.scss` next to the component (e.g. `meetingPrep/meetingPrep.scss`).
 
-- Layout/centering:
-  - Prefer `@include flex_CTR`, `@include flex_V_CTR`, `@include flex_V_CTR_H_STR`, `@include inlineFlex_CTR`.
-  - Remove redundant manual properties already covered by a mixin.
-- Positioning:
-  - Prefer `@include position(...)` over raw `position`, `top/right/bottom/left` blocks when possible.
-- Sizing:
-  - Prefer utility mixins like `@include square(...)`, `@include circle(...)` where applicable.
-- Typography:
-  - Use only supported font weight tokens for `@include fontWeight(...)`: `"b"`, `"bb"`, `"r"`, `"l"`, `"t"`.
-  - Do not use unsupported tokens (for example, avoid `sb`).
+Prefer **design tokens** (`var(--primary)`, `var(--text-md)`, …) over raw hex or magic numbers when a token already exists.
 
-## Selector style
+## Class naming (BEM-like, Phoenix FE)
 
-- In nested blocks, prefer explicit direct-child selectors with `& > ...` for readability and consistency.
-- Keep nesting shallow; avoid unnecessary selector specificity.
+- **Block:** single root segment per feature area, e.g. `meetingPrep`, `meetingPrep_sectionWrapper`.
+- **Sub-parts:** use a **double hyphen** before the segment name (not `_subpart` for new code):  
+  `meetingPrep_generatedText--paragraph`, `meetingPrep_state--icon`, `meetingPrep_attendeeIdentity--name`, `meetingPrep_sectionWrapper--nested`.
+- **Modifier-style sections** on the same block read clearly in TSX and match selectors compiled from nested `&--foo` under `&_block`.
 
-### Class naming (block segments + child)
+Keep TSX `className` strings aligned with compiled class names from the SCSS (search both when renaming).
 
-Use **underscores** between the base block and camelCase sub-segments, and a **double hyphen `--`** for the **child / sub-element** class (not another underscore before the child name).
+## CSS custom properties (`--variableName`)
 
-- **Pattern:** `{base}_{camelCaseSubclass}--{childClass}`
-- **Example:** `meetingPrep_generatedText_list` → **`meetingPrep_generatedText--list`**
+- **Naming:** camelCase after the double hyphen, e.g. `--sectionContentPadding`, `--metricChipBorderColor`.
+- **Define defaults** on the **smallest real DOM root** that wraps all consumers. If SCSS nests variables under `.myBlock { --foo: … }`, at least one mounted element must have class `myBlock` in the tree, or `var(--foo)` will not resolve. Portals / modals: put that root class on an ancestor that actually wraps the UI (e.g. content wrapper), not only on leaf nodes.
+- **One conceptual token, one name:** expose a single property (e.g. `--sectionContentPadding`) and **reassign it on modifier ancestors** instead of introducing `--sectionContentPaddingTight` _and_ separate `padding` overrides, when the same property is what changes.
+- **Do not** promote every literal to a custom property: **one-off** values that are not reused and do not participate in a clear override story can stay as plain declarations.
 
-When adding or renaming classes in SCSS, follow this pattern so child pieces are visibly distinct from block segments. Older modules may still use `&_element`; prefer `--element` for **new** child classes unless you are extending an existing `_` pattern in that file.
+### Theming a sub-surface (e.g. metric chip)
 
-## Variants and “flavours”: custom properties, not overwrites
+Group related overridable properties into **namespaced** variables on the block (e.g. `--metricChipBorderColor`, `--metricChipBackground`, `--metricIconValueColor`) with defaults on the block; **modifier classes** on the same block only reassign those variables. Shared layout rules consume `var(--…)` once.
 
-When a component already sets a CSS property (e.g. `padding`, `border-radius`) and a **variant or flavour** needs a **different value** for that same property, **do not** add a competing declaration that “overrides” the base in another modifier block. Instead **expose a surface as a variable** (CSS custom property preferred in `phoenix-fe`) and change the **value of that variable** per flavour.
+### Section layout tokens (padding, header, title)
 
-**Reference:** `src/assets/elements/status/ptStatus.scss`
+Same pattern: defaults on the component root; **nested section wrappers** override `--sectionHeaderPadding`, `--sectionTitleFontSize`, `--sectionContentPadding` so `meetingPrep_sectionHeader` / `meetingPrep_sectionContent` keep a single `var()` each.
 
-- Defaults live in something like `@mixin statusVars` (`--statusPadding`, `--statusBorderRadius`, …).
-- The base styles **consume** those: e.g. `padding: var(--statusPadding);`, `border-radius: var(--statusBorderRadius);`.
-- Flavours/mutators **only reassign variables**, e.g. `@mixin variantPillBordered` sets `--statusPadding: 2px 6px;` and `--statusBorderRadius: 50px;` instead of redefining raw `padding` / `border-radius` against the base mixin output.
+## SCSS authoring
 
-Apply the same idea elsewhere: if you need a second padding for another flavour, add or reuse a `--componentPadding`-style token and switch it per modifier; avoid duplicating the longhand property unless there is no shared hook.
+- **Nesting:** Prefer an explicit parent when using the direct child combinator: `& > .meetingPrep_sectionContent` rather than bare `> .meetingPrep_sectionContent` when the team wants symmetry with other rules.
+- **`&` + BEM:** Under `&_generatedText`, direct children use `& > &--list` / `& > &--paragraph` so compiled selectors stay `.meetingPrep_generatedText > .meetingPrep_generatedText--list`.
+- **Imports:** Component SCSS that uses `@include` relies on the app’s Sass include paths (CRA / shared partials); do not assume standalone `sass` CLI compiles a single file without those imports.
 
-## Copy/polish guardrails
+## Numbers and literals
 
-- Avoid adding `letter-spacing` unless there is explicit design direction.
-- Preserve existing spacing/rhythm unless change is required by request or bug.
-- Do not introduce hardcoded user-facing copy changes in SCSS-driven states without matching product direction.
+- Prefer **at most one digit after the decimal** for line-height and similar when the team calls it out (e.g. `1.4` not `1.45`), unless an existing design token dictates otherwise.
 
-## Review-comment handling policy
+## Checklist when touching SCSS
 
-- If a review comment is a pure style/convention fix, apply directly.
-- If applying a review comment changes UX or runtime behavior, stop and ask the user for permission first.
+- [ ] Class names in TSX match compiled selectors after SCSS changes.
+- [ ] Custom properties are defined on an ancestor that **exists in the DOM** for every render path (modal, storybook, tests).
+- [ ] Modifier overrides reassign the **same** token names where the design is “same knob, different value.”
+- [ ] No dead selectors left after renames; grep for old class strings.
 
-## Execution checklist
+## Evolving this skill
 
-- [ ] Reuse existing mixins where possible.
-- [ ] Remove redundant CSS replaced by mixins.
-- [ ] Validate fontWeight tokens are supported.
-- [ ] Keep selector patterns consistent with surrounding code.
-- [ ] For variant-specific values of the same property, prefer **custom properties** (see `ptStatus.scss`) instead of overwriting longhand in another modifier.
-- [ ] New or renamed classes follow `{base}_{camelCaseSubclass}--{childClass}` (child uses `--`, not `_`).
-- [ ] Confirm no unintended UX/behavior changes.
-- [ ] Run lints on edited files.
+When a new UI area establishes a repeatable SCSS pattern (or a pitfall, e.g. missing token root), add a short generalized rule here—not ticket-specific copy.
