@@ -1,6 +1,6 @@
 ### 1. Phoenix worker — full feature (primary)
 
-Use `@phoenix-worker` to run the full lifecycle: design → BE/FE enrichment → implementation → git/PR. The agent delegates to child skills one phase at a time. Open **one repo per chat** unless you use a multi-root workspace.
+Use `@phoenix-worker` to run the full lifecycle: design → enrichment → implementation → git/PR. Not every feature needs both repos — say **BE only**, **FE only**, or **both** up front; the agent will skip the other side only with your explicit consent. Open **one repo per chat** unless you use a multi-root workspace.
 
 **New feature (no plan yet):**
 
@@ -9,10 +9,32 @@ Use `@phoenix-worker` to run the full lifecycle: design → BE/FE enrichment →
 
 Feature: <one-line summary>
 Ticket: PTI-XXXXX
-Repos: BE / FE / both
+Repos: BE / FE / both  ← e.g. "FE only — no backend changes"
 Plan: create new
 
 Start from Phase 0. Guide me through design, enrichment, implementation, and PRs.
+```
+
+**BE-only:**
+
+```
+@phoenix-worker
+
+Feature: <summary>
+Ticket: PTI-XXXXX
+Repos: BE only — no phoenix-fe changes
+Plan: create new
+```
+
+**FE-only:**
+
+```
+@phoenix-worker
+
+Feature: <summary>
+Ticket: PTI-XXXXX
+Repos: FE only — existing APIs, no backend changes
+Plan: create new
 ```
 
 **Resume with an existing plan:**
@@ -28,13 +50,13 @@ Continue from the current phase. Phases completed so far: <list or "infer from p
 
 | Phase | What | Workspace |
 |-------|------|-----------|
-| 0 | Intake (ticket, scope) | Any |
+| 0 | Intake (ticket, scope, **repo scope: BE / FE / both**) | Any |
 | 1 | Design | `phoenix-feature-planning` — no repo required |
-| 2 | BE enrichment | Open `phoenix` |
-| 3 | FE enrichment | Open `phoenix-fe` |
-| 4 | BE implementation | Open `phoenix` |
-| 5 | FE implementation | Open `phoenix-fe` |
-| 6 | Git / draft PR | Per repo — `phoenix-git-workflow` |
+| 2 | BE enrichment | Open `phoenix` — skip if FE-only |
+| 3 | FE enrichment | Open `phoenix-fe` — skip if BE-only |
+| 4 | BE implementation | Open `phoenix` — skip if FE-only |
+| 5 | FE implementation | Open `phoenix-fe` — skip if BE-only |
+| 6 | Git / draft PR | Per repo in scope — `phoenix-git-workflow` |
 | 7 | Review comments | Repo with PR — `resolve-review-comments` |
 
 Plan file (default): `~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md` — always @-attach it when switching repos or sessions.
