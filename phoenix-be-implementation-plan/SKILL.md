@@ -138,10 +138,15 @@ Use [be-enrichment-template.md](be-enrichment-template.md) for section structure
 **Implementation handoff (after approval):**
 
 ```text
-Implement Backend section of docs/feature-plans/<feature-slug>-build-plan.md in phoenix.
+@phoenix-feature-implementation
+@~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md
+
+Implement Section 3 (Backend plan) in phoenix, steps in order.
 Follow CLAUDE.md (if present), attached reference files, and patterns cited in the plan.
-Do not reformat untouched code. BE steps in order.
+Do not reformat untouched code.
 ```
+
+Plan lives in personal skills docs unless copied into the app repo.
 
 ## Interaction rules
 

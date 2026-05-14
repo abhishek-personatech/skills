@@ -143,8 +143,9 @@ After confirmation, create **one markdown file** using [plan-template.md](plan-t
 
 **Output location** (default):
 
-- If a planning/docs folder exists in the open workspace, use it.
-- Otherwise create: `docs/feature-plans/<feature-slug>-build-plan.md`
+- **Personal skills repo** (preferred when planning from `~/.cursor/skills`):  
+  `~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md`
+- If a `docs/feature-plans/` folder exists in the **open app workspace**, use that instead.
 - Use kebab-case for `<feature-slug>` (e.g. `daily-meeting-summary-export`).
 
 Tell the user the file path and ask for review.
@@ -189,12 +190,12 @@ Tell the user the file path and ask for review.
 ## Handoff after design approval
 
 ```text
-Design approved: docs/feature-plans/<feature-slug>-build-plan.md
+Design approved: ~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md
 
 Next:
-1. Open phoenix → @phoenix-be-implementation-plan — enrich Backend section
-2. Open phoenix-fe → @phoenix-fe-implementation-plan — enrich Frontend + API integration
-3. Implement using enriched plan + phoenix-fe-feature (FE) / repo patterns (BE)
+1. Open phoenix → @phoenix-be-implementation-plan + @plan file — enrich Section 3
+2. Open phoenix-fe → @phoenix-fe-implementation-plan + @plan file — enrich Section 4 + 4.5
+3. Implement → @phoenix-feature-implementation + @plan file (see that skill for BE/FE prompts)
 ```
 
 ## Additional resources

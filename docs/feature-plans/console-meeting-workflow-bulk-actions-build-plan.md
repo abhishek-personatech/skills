@@ -5,7 +5,7 @@
 | **Ticket / ID** | TBD |
 | **Status** | Approved |
 | **Document type** | Design |
-| **Implementation status** | Pending repo enrichment |
+| **Implementation status** | Ready to implement |
 | **Author** | agent + user |
 | **Repos** | `phoenix` (BE), `phoenix-fe` (FE) |
 | **Last updated** | 2026-05-13 |
@@ -67,7 +67,7 @@ Enable console users to perform **participant-scoped bulk cancel** and **bulk re
 | Property | Value |
 |----------|-------|
 | **Method** | POST |
-| **Path** | `/api/admin/meeting/bulkCancel` *(provisional — align with existing admin meeting route conventions during BE enrichment)* |
+| **Path** | `/api/admin/meeting/bulkCancel` |
 | **Auth / roles** | Same as `POST /api/admin/meeting/cancel` |
 | **Description** | Cancel all eligible meetings for a registration participant within a program. Skips meetings that fail single-cancel eligibility checks. Applies the same admin note to each successfully cancelled meeting. |
 
@@ -105,7 +105,7 @@ Enable console users to perform **participant-scoped bulk cancel** and **bulk re
 | Property | Value |
 |----------|-------|
 | **Method** | POST |
-| **Path** | `/api/admin/meeting/bulkSendCalendarInvite` *(provisional)* |
+| **Path** | `/api/admin/meeting/bulkSendCalendarInvite` |
 | **Auth / roles** | Same as `POST /api/admin/meeting/sendCalendarInvite` |
 | **Description** | Resend calendar invites for all eligible meetings for a registration participant within a program. Skips ineligible meetings using the same rules as single send. |
 
@@ -167,7 +167,7 @@ Enable console users to perform **participant-scoped bulk cancel** and **bulk re
 - **Pagination / filters:** Bulk endpoints operate on full participant meeting set for the program, not paginated UI slices.
 - **Backward compatibility:** Existing single-meeting endpoints remain unchanged.
 - **Feature flag:** None required unless product requests phased rollout.
-- **Path naming:** Final paths must match `phoenix` admin meeting controller conventions during `phoenix-be-implementation-plan`.
+- **Path naming:** Confirmed — routes live on `MeetingController` under `/admin/meeting/*` (global `/api` prefix applied by Spring config, same as existing cancel/search/send endpoints).
 
 ---
 
@@ -175,176 +175,398 @@ Enable console users to perform **participant-scoped bulk cancel** and **bulk re
 
 ### 3.1 Summary
 
-Add two admin REST endpoints that batch-process a participant's meetings by reusing existing single-meeting cancel and send-calendar-invite service methods. No search API or schema changes. Per-meeting ineligibility is skipped silently; endpoints return `void` on success with no counts.
+Add two admin REST endpoints on the existing `MeetingController` that batch-process a participant's meetings for a program by reusing `MeetingService.cancelByAdmin` and `MeetingService.sendCalendarInvite`. Meeting scope matches participant search: `findAllByRegistrationParticipantIdAndProgramId`. Per-meeting ineligibility is skipped silently (catch `BusinessException` for cancel; send already no-ops when ineligible). Endpoints return empty `200` with no counts. No search API, schema, or Flyway changes.
 
-### 3.2 Codebase anchors
+### 3.2 Similar features / patterns to follow
 
-| Area | Path / pattern | Notes |
-|------|----------------|-------|
-| Admin meeting controller | `TBD — enrich with phoenix-be-implementation-plan` | Locate handler for `/api/admin/meeting/cancel` |
-| Cancel service | `TBD` | Extract or call existing cancel method per meeting |
-| Send invite service | `TBD` | Extract or call existing send method per meeting |
-| Meeting query | `TBD` | Load meetings by `registrationParticipantId` + `programId` |
-| Request DTOs | `TBD` | New bulk request DTOs only (no response body) |
-| Tests | `TBD` | Unit tests for skip behavior; integration tests for endpoints |
+> User-attached reference files: `MeetingController.java` (single cancel + send), `MeetingService.java` (service logic).
 
-### 3.3 Data model & migrations
+| Reference feature | Controller | Service | Why relevant |
+|-------------------|------------|---------|--------------|
+| Single meeting cancel | `registration/src/main/java/com/personatech/program/rest/api/participantagenda/MeetingController.java` | `registration/src/main/java/com/personatech/program/service/programagenda/MeetingService.java` | `POST /admin/meeting/cancel` → `cancelByAdmin` — bulk must delegate per meeting |
+| Single calendar invite resend | same `MeetingController.java` | same `MeetingService.java` | `GET /admin/meeting/sendCalendarInvite` → `sendCalendarInvite(programParticipationId)` — bulk calls once per resolved participation |
+| Participant meeting search | same `MeetingController.java` | same `MeetingService.java` | `POST /admin/meeting/search` with `registrationParticipantId` + `programId` — same meeting scope for bulk |
+| Program-scoped admin write | `registration/src/main/java/com/personatech/registration/rest/api/meetingmatching/MeetingMatchingController.java` | — | `@PreAuthorize("hasPermission(#request.programId, 'ProgramEval', 'PROGRAM_WRITE')")` — bulk auth pattern |
+| Cancel API integration test | — | — | `registration/src/test/java/com/personatech/basespringboot/programagenda/ProgramAgendaListingTest.java` — `cancelMeeting()` MockMvc pattern |
 
-| Change | Type | Details |
-|--------|------|---------|
-| None expected | — | Bulk endpoints reuse existing meeting tables and cancel/note fields |
+### 3.3 Codebase anchors (verified)
 
-**Migration notes**
-- No Flyway migration anticipated unless audit/logging requires a new table (out of scope unless discovered during enrichment).
+| Layer | Path | Action |
+|-------|------|--------|
+| Controller | `registration/src/main/java/com/personatech/program/rest/api/participantagenda/MeetingController.java` | extend |
+| Service | `registration/src/main/java/com/personatech/program/service/programagenda/MeetingService.java` | extend |
+| Bulk cancel request DTO | `registration/src/main/java/com/personatech/program/rest/types/programagenda/ApiMeetingBulkCancel.java` | create |
+| Bulk send request DTO | `registration/src/main/java/com/personatech/program/rest/types/programagenda/ApiMeetingBulkSendCalendarInvite.java` | create |
+| Single-cancel DTO (reuse) | `registration/src/main/java/com/personatech/program/rest/types/programagenda/ApiMeetingCancel.java` | extend — no change; bulk builds instances |
+| Search DTO (scope reference) | `registration/src/main/java/com/personatech/program/rest/types/programagenda/ApiMeetingSearch.java` | extend — no change |
+| Admin response (FE eligibility) | `registration/src/main/java/com/personatech/program/rest/types/programagenda/ApiMeetingForAdmin.java` | extend — no change |
+| Participation DTO | `registration/src/main/java/com/personatech/registration/rest/types/participation/ApiMeetingProgramParticipationForAdmin.java` | extend — no change |
+| Repository query | `MeetingRepository.findByAgendaTypeAndProgramParticipations_EventParticipant_RegistrationParticipant_IdAndProgramId` (via `MeetingService.findAllByRegistrationParticipantIdAndProgramId`) | extend — no change |
+| Calendar invite sender | `registration/src/main/java/com/personatech/registration/service/participant/MeetingProgramParticipantService.java` | extend — no change |
+| Migration | — | none |
+| Service unit test | `registration/src/test/java/com/personatech/baseunit/service/programagenda/MeetingServiceBulkActionTest.java` | create |
+| Integration test | `registration/src/test/java/com/personatech/basespringboot/programagenda/MeetingBulkActionControllerTest.java` | create |
 
-### 3.4 Implementation steps (ordered)
+### 3.4 Data model & migrations
 
-| Step | Task | Files / components | Depends on |
-|------|------|-------------------|------------|
-| BE-1 | Locate single cancel + send invite flows; document eligibility checks | Controller, service | — |
-| BE-2 | Add bulk request DTOs | DTO package | BE-1 |
-| BE-3 | Implement bulk cancel service (loop + skip) | Service layer | BE-1, BE-2 |
-| BE-4 | Implement bulk send invite service (loop + skip) | Service layer | BE-1, BE-2 |
-| BE-5 | Expose `POST .../bulkCancel` endpoint | Admin meeting controller | BE-3 |
-| BE-6 | Expose `POST .../bulkSendCalendarInvite` endpoint | Admin meeting controller | BE-4 |
-| BE-7 | Unit + API tests | Test packages | BE-5, BE-6 |
+| Change | Type | Migration file | Notes |
+|--------|------|----------------|-------|
+| None | — | none | Bulk reuses `Meeting`, `ProgramParticipation`, and existing `note` field on meeting |
 
-**Per-step detail**
+### 3.5 API contract adjustments (if any)
+
+| Change | Reason |
+|--------|--------|
+| Confirmed paths: `POST /api/admin/meeting/bulkCancel`, `POST /api/admin/meeting/bulkSendCalendarInvite` | Match `MeetingController` `/admin/meeting/*` convention |
+| Bulk send uses `POST` + JSON body (single send is `GET` + query param) | Symmetric bulk request shape; no change to single endpoint |
+| Bulk auth: `ProgramEval` + `PROGRAM_WRITE` on `programId` | Program-scoped console workflow; single cancel/send use per-meeting/per-participation eval — document for FE permission gating |
+| Bulk cancel does not support `convertToEmailIntroduction` | Out of scope per design; always `false` |
+
+### 3.6 Implementation steps (ordered)
+
+| Step | Task | File(s) | Depends on | Done when |
+|------|------|---------|------------|-----------|
+| BE-1 | Audit single cancel/send eligibility | Plan §3.6 step detail | — | Checklist mapped to bulk loop |
+| BE-2 | Create bulk request DTOs | `ApiMeetingBulkCancel.java`, `ApiMeetingBulkSendCalendarInvite.java` | BE-1 | Types match Section 2 contract |
+| BE-3 | Add participation resolver + `bulkCancelByAdmin` | `MeetingService.java` | BE-1, BE-2 | Unit tests pass |
+| BE-4 | Add `bulkSendCalendarInvite` | `MeetingService.java` | BE-1, BE-2 | Unit tests pass |
+| BE-5 | Expose `POST /admin/meeting/bulkCancel` | `MeetingController.java` | BE-3 | Integration test passes |
+| BE-6 | Expose `POST /admin/meeting/bulkSendCalendarInvite` | `MeetingController.java` | BE-4 | Integration test passes |
+| BE-7 | Service + controller tests | `MeetingServiceBulkActionTest.java`, `MeetingBulkActionControllerTest.java` | BE-5, BE-6 | green locally |
 
 #### BE-1: Audit single-meeting eligibility rules
-- **What:** Read `POST /api/admin/meeting/cancel` and `POST /api/admin/meeting/sendCalendarInvite` handlers and downstream services. List all checks (status, permissions, timing, participant binding, etc.).
-- **Where:** `TBD — enrich with phoenix-be-implementation-plan`
-- **How:** Trace from controller → service → domain validation.
-- **Done when:** Checklist of rules documented and mapped to bulk loop.
+
+- **What:** Trace `cancelByAdmin` and `sendCalendarInvite`; document checks for bulk skip behavior.
+- **Where:** `MeetingService.java` (L130–189 cancel, L371–383 send)
+- **Pattern:** follow existing single-meeting flows — no new validation in bulk layer.
+
+**Cancel (`cancelByAdmin` → `cancel`)**
+
+| Check | On failure | Bulk behavior |
+|-------|------------|---------------|
+| Meeting not already `CANCELLED` | `BusinessException` (`meeting.already.cancelled`) | Skip |
+| Program not after reconciliation | `BusinessException` (`meeting.cancellation-not-allowed`) | Skip |
+| Primary participation for `registrationParticipantId` on meeting | `NoSuchElementException` if missing | Skip before calling |
+| Email intro conversion | `BusinessException` if invalid | N/A — bulk sets `convertToEmailIntroduction = false` |
+
+**Not enforced on BE today:** `CONFIRMED`-only status (FE preview may filter; bulk must mirror single cancel).
+
+**Resend (`sendCalendarInvite`)**
+
+| Check | Bulk behavior |
+|-------|---------------|
+| `programStatus.isEmailAndInviteAllowed()` | No-op (no exception) |
+| `!agenda.getStatus().isCancelled()` | No-op |
+| `agenda.isFuture()` | No-op |
+
+Aligns with `ApiMeetingForAdmin.canSendCalendarInvite`. Bulk calls `sendCalendarInvite` once per meeting for the participation belonging to `registrationParticipantId` (not counterparty).
+
+#### BE-2: Bulk request DTOs
+
+- **What:** Create `ApiMeetingBulkCancel` (`registrationParticipantId`, `programId`, `noteForAdmin`) and `ApiMeetingBulkSendCalendarInvite` (`registrationParticipantId`, `programId`) with `@NotNull` on required fields.
+- **Where:** `registration/src/main/java/com/personatech/program/rest/types/programagenda/`
+- **Pattern:** follow `ApiMeetingSearch.java` / `ApiMeetingCancel.java` (Lombok `@Data`, jakarta validation).
+- **Done when:** `noteForAdmin` maps to `ApiMeetingCancel.note` in service.
 
 #### BE-3: Bulk cancel service
-- **What:** Query all meetings for participant+program; for each, invoke shared cancel logic with `noteForAdmin`; catch ineligibility and skip.
-- **Where:** `TBD`
-- **How:** Prefer calling the same private/package method used by single cancel rather than duplicating validation.
-- **Done when:** Eligible meetings cancelled; ineligible skipped silently; endpoint returns void on completion.
+
+- **What:** Load meetings via `findAllByRegistrationParticipantIdAndProgramId`; for each, resolve primary participation for `registrationParticipantId`; build `ApiMeetingCancel`; call `cancelByAdmin`; catch `BusinessException` and skip.
+- **Where:** `MeetingService.java`
+- **Pattern:** follow `cancelByAdmin` / `cancelMeetingByProgramParticipantCancellation` loop patterns.
+- **Auth:** N/A at service layer.
+- **Errors:** `baseProgramService.get(programId)` propagates not-found; per-meeting `BusinessException` swallowed.
+- **Transaction:** Do **not** annotate `bulkCancelByAdmin` with `@Transactional` — each `cancelByAdmin` commits independently.
+- **Done when:** Eligible meetings cancelled with shared note; ineligible skipped; no throw on all-ineligible.
 
 #### BE-4: Bulk send invite service
-- **What:** Same pattern as BE-3 using single send-calendar-invite logic.
-- **Where:** `TBD`
-- **How:** Reuse single-send service method per meeting.
-- **Done when:** Eligible invites sent; ineligible skipped silently; endpoint returns void on completion.
 
-### 3.5 Validation & rollout (BE)
+- **What:** Same meeting load; resolve participation per meeting; call `sendCalendarInvite(participation.getId())`.
+- **Where:** `MeetingService.java`
+- **Pattern:** follow `sendCalendarInvite` — ineligibility is already silent.
+- **Done when:** Eligible invites sent; ineligible no-ops; no throw on all-ineligible.
 
-- [ ] Unit tests: all eligible → all cancelled/sent; mixed eligible/ineligible → eligible processed, ineligible skipped; none eligible → void 200, no side effects on ineligible
-- [ ] Controller/API tests for auth, 400, 403, 404
-- [ ] Manual API check: bulk cancel with note persisted on each cancelled meeting
-- [ ] Manual API check: bulk resend triggers same side effects as single send
-- [ ] Permissions verified for same roles as single endpoints
+**Shared helper (recommended):**
+
+```java
+private ProgramParticipation findPrimaryParticipationForRegistrationParticipant(
+    Meeting meeting, UUID registrationParticipantId)
+```
+
+Filter `meeting.getParticipations()` where `eventParticipant.registrationParticipant.id` matches and `role.isPrimary()`.
+
+#### BE-5: Bulk cancel controller endpoint
+
+- **What:** `POST /admin/meeting/bulkCancel` → `meetingService.bulkCancelByAdmin` → `ResponseEntity.ok().build()`.
+- **Where:** `MeetingController.java`
+- **Pattern:** follow `cancelMeeting()` endpoint structure.
+- **Auth:** `@PreAuthorize("hasPermission(#request.programId, 'ProgramEval', 'PROGRAM_WRITE')")`
+- **Done when:** 200 empty body; 403 without program write.
+
+#### BE-6: Bulk send controller endpoint
+
+- **What:** `POST /admin/meeting/bulkSendCalendarInvite` → `meetingService.bulkSendCalendarInvite` → `ResponseEntity.ok().build()`.
+- **Where:** `MeetingController.java`
+- **Pattern:** follow `sendCalendarInvite()` but `POST` + `@RequestBody`.
+- **Auth:** same as BE-5.
+- **Done when:** 200 empty body.
+
+#### BE-7: Tests
+
+- **What:**
+
+| Test | File | Assert |
+|------|------|--------|
+| `bulkCancelByAdmin_allEligible_cancelsAll` | `MeetingServiceBulkActionTest.java` | N meetings → N `cancelByAdmin` calls |
+| `bulkCancelByAdmin_mixedEligible_skipsIneligible` | same | cancelled meeting skipped; eligible cancelled |
+| `bulkCancelByAdmin_noneEligible_noThrow` | same | void return, zero cancellations |
+| `bulkSendCalendarInvite_delegatesPerMeeting` | same | correct `programParticipationId` per meeting |
+| `bulkCancel_success` / `bulkSend_success` | `MeetingBulkActionControllerTest.java` | MockMvc POST, 200, DB state |
+| `bulkCancel_forbidden` | same | 403 without `PROGRAM_WRITE` |
+
+- **Pattern:** follow `ProgramAgendaListingTest.cancelMeeting()` — `MockMvcRequestBuilders.post`, `x-auth-token`, JSON body; extend `ProgramAgendaBaseTest`.
+- **Run:** `./gradlew :registration:test --tests "com.personatech.baseunit.service.programagenda.MeetingServiceBulkActionTest"` and `--tests "com.personatech.basespringboot.programagenda.MeetingBulkActionControllerTest"`
+
+### 3.7 Verification checklist (BE)
+
+- [ ] `./gradlew :registration:test --tests "com.personatech.baseunit.service.programagenda.MeetingServiceBulkActionTest"`
+- [ ] `./gradlew :registration:test --tests "com.personatech.basespringboot.programagenda.MeetingBulkActionControllerTest"`
+- [ ] No Flyway migration required
+- [ ] Manual: `POST /api/admin/meeting/bulkCancel` with admin token — note persisted on each cancelled meeting
+- [ ] Manual: `POST /api/admin/meeting/bulkSendCalendarInvite` — same side effects as `GET /api/admin/meeting/sendCalendarInvite`
+- [ ] Manual: mixed eligible/ineligible participant — eligible processed, request still 200
+- [ ] Section 2 contract matches implemented request shapes and void response
 
 ---
+
 
 ## 4. Frontend plan (`phoenix-fe`)
 
 ### 4.1 Summary
 
-Extend the Console Meeting Workflow screen with two bulk action buttons and a day filter. Buttons appear when a participant filter is applied and search has run. Bulk cancel uses a two-step flow (note modal → confirm alert); bulk resend uses a confirm alert only. After success, refetch search results and show a generic success toast (no count from API). Day filter is purely client-side on the search response.
+Extend the existing **Meetups Meeting Workflow** module (`meetups/list/`) — no new top-level feature folder. Add **Bulk Cancel**, **Bulk Resend Calendar Invite**, and a **Day filter** to the participant-scoped workflow.
 
-### 4.2 Codebase anchors
+**UI placement:** Bulk action buttons render in `meetingTopFilters_right` in `components/filters/index.tsx`, adjacent to the existing **Accept All** button — same visibility gate (`showAdditionalFilters` + participant search completed). Wrap buttons in `HasProgramWriteAuthority` (single-meeting actions use this in `index.tsx`).
 
-| Area | Path | Notes |
-|------|------|-------|
-| Meeting Workflow feature | `TBD — enrich with phoenix-fe-implementation-plan` | Console meeting workflow screen |
-| API endpoint enums | `TBD` e.g. `src/apps/console/enums/consoleApi.ts` | Add bulk endpoint constants |
-| Single cancel / resend UI | `TBD` | Mirror eligibility UX and copy patterns |
-| Copy / i18n | `I18n` keys | New modal, alert, toast, day filter labels |
-| Tests | `__test__/` | Per repo testing skill |
+**Participant filter:** `participant.tsx` already wires `selectParticipantHandler` → `setRegistrationParticipant`; **no changes required** there unless product later moves the day filter into the left search row. Bulk visibility/disable logic lives in `service.tsx` using `state.searchedRegistrationParticipantId`, `state.currentRegistrationParticipant`, and raw search `data` (not day-filtered `filteredData`).
 
-### 4.3 UX / UI breakdown
+**Flows:** Bulk cancel = outline `Button` → note modal (`FormTextField` for admin note, same validation as single cancel) → `initConfirmationAlert` with participant name → `POST bulkCancel` → `getParticipantsByCriteria(apiRequestObjectRef.current)` → generic success toast. Bulk resend = outline `Button` → `initConfirmationAlert` only (mirror `acceptAllMeetingsClickHandler`) → `POST bulkSendCalendarInvite` → refetch → toast. Day filter = client-side only via `applyAllFilters`; bulk APIs always use full participant search set.
 
-| Screen / state | Behavior | Copy keys |
-|----------------|----------|-----------|
-| Participant not selected | No bulk buttons; no day filter | — |
-| Participant selected, pre-search | No bulk buttons; no day filter | — |
-| Participant searched, results loaded | Show day filter + bulk buttons in action area | `TBD` |
-| Bulk Cancel disabled | Zero eligible (confirmed + cancellable) meetings | Tooltip: no eligible meetings `TBD` |
-| Bulk Resend disabled | Zero eligible meetings per single-resend rules | Tooltip `TBD` |
-| Bulk Cancel — step 1 | Modal: Note for Admin (optional/required per single-cancel parity) | `TBD` |
-| Bulk Cancel — step 2 | Confirm alert: `"<participant-name>'s meetings will be marked cancelled, are you sure to proceed?"` | `TBD` |
-| Bulk Resend — confirm | Alert: `"Calendar invite will be sent for <participant-name>'s meetings"` | `TBD` |
-| Bulk action loading | Disable buttons / show loading on confirm | `TBD` |
-| Bulk action success | Refetch search; generic success toast | `TBD` |
-| Bulk action error | Toast or inline error; no partial UI breakdown | `TBD` |
-| Day filter | Dropdown of unique days from results; filters table only | `TBD` |
-| Day filter cleared | Show all meetings from search | — |
+### 4.2 Similar features / patterns to follow
 
-### 4.4 Feature structure (proposed)
+> User-attached reference: Accept All bulk action in `components/filters/index.tsx` + `service.tsx`.
 
-Extend existing Meeting Workflow module rather than a new top-level feature:
+| Reference feature | Path | Why relevant |
+|-------------------|------|--------------|
+| Accept All bulk action | `meetups/list/components/filters/index.tsx` (L65–77), `service.tsx` (L369–446) | **Primary pattern** — `canShow*` / `shouldDisable*` memos, `meetingTopFilters_right` placement, `initConfirmationAlert`, refetch via `getParticipantsByCriteria`, `isSameParticipant` guard |
+| Participant search filter | `meetups/list/components/filters/participant.tsx` | Sets `registrationParticipantId` + `setRegistrationParticipant`; search commits `searchedRegistrationParticipantId` in `searchClickHandler` |
+| Single meeting cancel | `meetups/list/components/CancelMeeting.tsx`, `service.tsx` `handleCancelMeeting` | Note field + `Validation.textFieldValidation` (`MIN/MAX_NOTE_LENGTH_IN_MEETING`); confirmation alert before API |
+| Single calendar invite resend | `meetups/list/components/SendInvite.tsx`, `MeetingActions.tsx` (L40–46) | `meeting.canSendCalendarInvite` eligibility flag on `ApiMeetingForAdmin` |
+| Meeting type side filter | `service.tsx` `useSelectFilter` + `meetingSubType` | Day filter can reuse `useSelectFilter` hook pattern |
+| API / dataloader | `meetups/list/dataloader.ts` | `usePostApiData` mutations; mirror `useAcceptAllMeetings` / `useCancelMeeting` |
+| Authority gating | `apps/console/components/authority` `HasProgramWriteAuthority` | Bulk buttons require program write (aligns with BE `PROGRAM_WRITE`) |
+| Integration tests | `meetups/list/__test__/meetups.test.tsx` | `consoleRender`, mock `useMeetingListContext` / dataloader |
+
+### 4.3 Codebase anchors (verified)
+
+| Area | Path | Action |
+|------|------|--------|
+| Route parent | `src/apps/console/modules/program/workflow/index.tsx` (L21) | extend — no route change; `MeetingList` already mounted |
+| Feature entry | `src/apps/console/modules/program/workflow/meeting/meetups/list/index.tsx` | extend — `MeetingListProvider` / `MeetingList`; list reads `service.data` (filtered) |
+| Service hook | `src/apps/console/modules/program/workflow/meeting/meetups/list/service.tsx` | extend — bulk handlers, eligibility memos, day filter state, `applyAllFilters` |
+| Service types | `src/apps/console/modules/program/workflow/meeting/meetups/list/types.d.ts` | extend — new properties on `MeetingListingService` |
+| Top filters / bulk button UI | `src/apps/console/modules/program/workflow/meeting/meetups/list/components/filters/index.tsx` | extend — add Bulk Cancel, Bulk Resend, Day filter in `meetingTopFilters_right` |
+| Participant filter | `src/apps/console/modules/program/workflow/meeting/meetups/list/components/filters/participant.tsx` | **no change** (already provides participant context) |
+| Dataloader | `src/apps/console/modules/program/workflow/meeting/meetups/list/dataloader.ts` | extend — `useBulkCancelMeetings`, `useBulkSendCalendarInvites` |
+| API enum | `src/apps/console/enums/consoleApi.ts` (near L404–415) | extend — `BULK_CANCEL_MEETINGS`, `BULK_SEND_CALENDAR_INVITE` |
+| Shared request types | `src/shared/types/ApiMeetingBulkCancel.ts`, `ApiMeetingBulkSendCalendarInvite.ts` | create — align with Section 2 |
+| Eligibility helpers | `src/apps/console/modules/program/workflow/meeting/meetups/list/utils.ts` | extend — `getEligibleMeetingsForBulkCancel`, `getEligibleMeetingsForBulkResend`, `getUniqueMeetingDays` |
+| Bulk cancel note modal | `src/apps/console/modules/program/workflow/meeting/meetups/list/components/BulkCancelMeetingsModal.tsx` | create |
+| Meeting time display | `src/apps/console/modules/program/workflow/meeting/components/MeetingTime.tsx` | reference — day buckets must match `time.timeFrom` + `time.timeZoneDisplayStr` |
+| SCSS | `src/apps/console/modules/program/workflow/workflow.scss` (`.meetingTopFilters`, L589+) | extend — gap/layout for extra buttons + day dropdown if needed |
+| i18n | `src/shared/types/I18n.ts` | extend — new keys (Section 4.6) |
+| Tests | `src/apps/console/modules/program/workflow/meeting/meetups/list/__test__/bulkActions.test.tsx` | create (or extend `meetups.test.tsx`) |
+| Reducer | `meetups/list/reducer.ts` | extend — no change expected; reuse existing participant state |
+
+### 4.4 Proposed feature structure
+
+Extend existing module — **do not** create a sibling `MeetingWorkflow/` folder:
 
 ```
-MeetingWorkflow/   (existing — exact path TBD)
-├── index.tsx              # wire day filter + bulk buttons
-├── service.ts             # bulk API calls, eligibility helpers, refetch
-├── types.ts               # bulk request types
+src/apps/console/modules/program/workflow/meeting/meetups/list/
+├── index.tsx                          # no bulk UI here; list + context only
+├── service.tsx                        # + bulk handlers, day filter, eligibility memos
+├── types.d.ts                         # + MeetingListingService bulk/day props
+├── dataloader.ts                      # + useBulkCancelMeetings, useBulkSendCalendarInvites
+├── utils.ts                           # + eligibility + day extraction helpers
 ├── components/
-│   ├── BulkCancelNoteModal.tsx
-│   ├── BulkActionConfirmAlert.tsx   # shared or separate per action
-│   └── DayFilter.tsx
+│   ├── filters/
+│   │   ├── index.tsx                  # + Bulk Cancel, Bulk Resend, Day filter buttons
+│   │   └── participant.tsx          # unchanged
+│   └── BulkCancelMeetingsModal.tsx    # new — note step only
 └── __test__/
-    ├── MeetingWorkflow.bulk.test.tsx
-    └── mockData.ts
+    ├── meetups.test.tsx               # existing
+    └── bulkActions.test.tsx           # new integration tests
 ```
 
-### 4.5 API integration
+### 4.5 API integration (verified against Section 2)
 
-> Implement exactly against **Section 2**. Do not diverge without updating this plan.
+| UI action | API (Section 2) | API enum | Dataloader hook | Service handler | Request mapping | Response / post-success | Error UX |
+|-----------|-----------------|----------|-----------------|-----------------|-----------------|-------------------------|----------|
+| Load meetings | `POST /api/admin/meeting/search` | `ConsoleApi.PARTICIPANTS_FOR_MEETINGS` | `useGetParticipantsForMeeting` | `getParticipantsByCriteria` | `{ programId, registrationParticipantId, … }` from Formik + `apiRequestObjectRef` | `ApiMeetingForAdmin[]` → raw `data` state → `filteredData` | existing axios / network handler |
+| Bulk cancel | `POST /api/admin/meeting/bulkCancel` | `ConsoleApi.BULK_CANCEL_MEETINGS = "admin/meeting/bulkCancel"` | `useBulkCancelMeetings` | `bulkCancelMeetingsClickHandler` | `{ programId, registrationParticipantId: state.searchedRegistrationParticipantId, noteForAdmin }` | `void` → `successToast` + `getParticipantsByCriteria(apiRequestObjectRef.current)` | centralized error toast (existing mutation pattern); no partial-count UI |
+| Bulk resend | `POST /api/admin/meeting/bulkSendCalendarInvite` | `ConsoleApi.BULK_SEND_CALENDAR_INVITE = "admin/meeting/bulkSendCalendarInvite"` | `useBulkSendCalendarInvites` | `bulkResendInvitesClickHandler` | `{ programId, registrationParticipantId: state.searchedRegistrationParticipantId }` | `void` → toast + refetch | same as bulk cancel |
 
-| UI action | API (from contract) | Hook / service function | Request mapping | Response mapping | Error handling |
-|-----------|---------------------|-------------------------|-----------------|------------------|----------------|
-| Load meetings | `POST /api/admin/meeting/search` | existing search handler | participant + program filters | meeting list → state | existing error handling |
-| Bulk cancel | `POST /api/admin/meeting/bulkCancel` | `bulkCancelMeetings` | `registrationParticipantId`, `programId`, `noteForAdmin` | void → generic success toast + refetch | toast on 4xx/5xx |
-| Bulk resend | `POST /api/admin/meeting/bulkSendCalendarInvite` | `bulkSendCalendarInvites` | `registrationParticipantId`, `programId` | void → generic success toast + refetch | toast on 4xx/5xx |
+**Integration notes**
 
-**Integration details**
-- **Client / module:** Existing console axios instance and API helper patterns — `TBD during enrichment`
-- **Types:** Define bulk request types in `types.ts` aligned with BE DTOs (no response body)
-- **Loading / error state:** Disable bulk buttons and show loading on modal/alert confirm while request in flight
-- **Caching / refetch:** On bulk success, invalidate/refetch meeting search query for current participant+program
-- **Optimistic updates:** No — wait for server response, then refetch
-- **Eligibility preview (button disable):** Derive from loaded search results using same rules as single actions (confirmed for cancel; single-resend rules for resend).
-- **Day filter:** Pure FE — filter displayed rows by selected date; do not pass day to bulk APIs
+- **HTTP client:** `usePostApiData` from `shared/datalayer` via `dataloader.ts` — same as `useAcceptAllMeetings` / `useCancelMeeting`. No new axios instance.
+- **Auth / headers:** Inherited from `AXIOS_INSTANCE` interceptors (`x-auth-token`, etc.). UI gated by `HasProgramWriteAuthority` on bulk buttons.
+- **Refetch:** Use `getParticipantsByCriteria(apiRequestObjectRef.current)` (same as `acceptAllMeetingsClickHandler` L440) — preserves current search criteria without re-submitting Formik.
+- **Raw vs filtered data:** Service keeps unfiltered meetings in internal `data` state (`useState`); exposes `filteredData` as `data` on context. **Bulk eligibility must read internal raw `data`**, not context `filteredData`, so day/meeting-type filters do not affect bulk targeting.
+- **Optimistic updates:** None — wait for 200, then refetch.
+- **Day filter:** Add `selectedMeetingDay` to service; include in `applyAllFilters` comparing calendar date of `meeting.time.timeFrom` (use `DateTimeHelper` with meeting `time.timeZoneDisplayStr` for bucket labels consistent with `MeetingTime`). Clear day filter on `searchClickHandler` / `handleResetFilters`.
+- **Mock strategy for tests:** `jest.spyOn(dataloaderModule, 'useBulkCancelMeetings')` + `consoleRender` with participant search flow; follow `meetups.test.tsx` patterns.
 
-### 4.6 Implementation steps (ordered)
+**Proposed shared types**
 
-| Step | Task | Files | Depends on |
-|------|------|-------|------------|
-| FE-1 | Types + API client for bulk endpoints | `types.ts`, `service.ts`, API enum | BE contract (can mock) |
-| FE-2 | Eligibility helpers + button disabled state | `service.ts` | FE-1, search result shape |
-| FE-3 | Day filter component + client-side filtering | `DayFilter.tsx`, `index.tsx` | Search results |
-| FE-4 | Bulk cancel modal + confirm flow | `BulkCancelNoteModal.tsx`, alerts | FE-1, FE-2 |
-| FE-5 | Bulk resend confirm flow | alert component / shared | FE-1, FE-2 |
-| FE-6 | Wire action area buttons + post-success refetch/toast | `index.tsx`, `service.ts` | FE-3–FE-5 |
-| FE-7 | i18n copy keys | I18n | FE-4–FE-6 |
-| FE-8 | Integration tests | `__test__/` | FE-6 |
-| FE-9 | SCSS (if needed) | co-located `.scss` | FE-3–FE-6 |
+```typescript
+// src/shared/types/ApiMeetingBulkCancel.ts
+export interface ApiMeetingBulkCancel {
+  registrationParticipantId: string;
+  programId: string;
+  noteForAdmin?: string;
+}
 
-**Per-step detail**
+// src/shared/types/ApiMeetingBulkSendCalendarInvite.ts
+export interface ApiMeetingBulkSendCalendarInvite {
+  registrationParticipantId: string;
+  programId: string;
+}
+```
 
-#### FE-3: Day filter
-- **What:** Extract unique calendar dates from meeting list; render dropdown; filter displayed rows when a day is selected.
-- **Where:** `TBD`
-- **How:** Use the same date field as the meeting list display; `useMemo` for unique days sorted chronologically.
-- **Done when:** Only days with meetings appear; clearing filter shows full list; bulk actions unaffected by selection.
+### 4.6 UX / copy (concrete)
 
-#### FE-4: Bulk cancel flow
-- **What:** Button → Note for Admin modal → on submit → confirmation alert with participant name → call bulk cancel API.
-- **Where:** `TBD`
-- **How:** Reuse existing modal/alert primitives from console meeting workflow or shared components.
-- **Done when:** Happy path matches acceptance criteria; note passed to API.
+| Screen / state | UI location | Behavior | Copy keys (proposed) |
+|----------------|-------------|----------|----------------------|
+| No participant search | — | Hide bulk buttons + day filter | — |
+| Participant selected, not searched | — | Hide bulk buttons + day filter (`searchedRegistrationParticipantId` unset) | — |
+| Participant searched, results loaded | `meetingTopFilters_right` | Show day filter + bulk buttons inside `showAdditionalFilters` | see below |
+| Participant changed, not re-searched | bulk buttons visible | Disabled via `!isSameParticipant` (mirror Accept All L379–390) | `console.meeting.bulk.action.participant.not.searched.tooltip` |
+| Bulk Cancel disabled | bulk button | `disabled` + tooltip when zero cancellable meetings in **raw** `data` | `console.meeting.bulk.cancel.disabled.tooltip` |
+| Bulk Resend disabled | bulk button | `disabled` + tooltip when no meeting has `canSendCalendarInvite` in raw `data` | `console.meeting.bulk.resend.disabled.tooltip` |
+| Bulk Cancel step 1 | `BulkCancelMeetingsModal` | Modal with Note for Admin (`FormTextField`, optional, `MIN/MAX_NOTE_LENGTH_IN_MEETING`) | `console.meeting.bulk.cancel.modal.title`, reuse `console.meeting.screen.note.for.admin` |
+| Bulk Cancel step 2 | `initConfirmationAlert` | Confirm with participant full name | `console.meeting.bulk.cancel.confirmation` — `{0: currentRegistrationParticipant.fullName}` |
+| Bulk Resend confirm | `initConfirmationAlert` | Single confirm (no note modal) | `console.meeting.bulk.resend.confirmation` — `{0: fullName}` |
+| Bulk Cancel success | toast | After refetch | `console.meeting.bulk.cancel.success` |
+| Bulk Resend success | toast | After refetch | `console.meeting.bulk.resend.success` |
+| Day filter | `meetingTopFilters_right` (before bulk buttons) | `useSelectFilter` or `FormSelectDropdownField`; options = unique days from raw `data`; "All days" clears filter | `console.meeting.day.filter.placeholder`, `console.meeting.day.filter.all.days` |
+| Day filter active | meeting list | `index.tsx` list shows subset; result count reflects filtered rows | — |
+| Bulk action in flight | confirm handler | `try/catch`; disable confirm while awaiting (existing alert pattern) | — |
 
-### 4.7 Validation & rollout (FE)
+**Visibility / disable logic (mirror Accept All)**
 
-- [ ] Follow `CLAUDE.md` patterns
-- [ ] No hardcoded user-facing strings
-- [ ] Integration tests: buttons disabled with zero eligible; bulk cancel two-step flow; bulk resend confirm; day filter options and filtering
-- [ ] Manual test: participant search → day filter → bulk actions still target full set
-- [ ] API integrated against dev/staging after BE endpoints deployed
+```typescript
+// Show bulk actions when participant filter was searched and list has data (not Connections program)
+const canShowBulkParticipantActions = useMemo(
+  () => Boolean(state.searchedRegistrationParticipantId) && showAdditionalFilters,
+  [state.searchedRegistrationParticipantId, showAdditionalFilters]
+);
+
+// Cancel: FE preview — meeting.status !== CANCELLED (matches MeetingActions L26)
+const shouldDisableBulkCancel = !isSameParticipant || !rawData.some(m => m.status !== ProgramAgendaStatus.CANCELLED);
+
+// Resend: FE preview — meeting.canSendCalendarInvite (matches MeetingActions L40)
+const shouldDisableBulkResend = !isSameParticipant || !rawData.some(m => m.canSendCalendarInvite);
+```
+
+> **BE alignment note:** Section 3 BE-1 documents additional cancel checks (reconciliation, already cancelled). FE disable is a **preview** only; server skips ineligible meetings silently. Do not block the button on FE-only stricter rules unless product requires it.
+
+### 4.7 Implementation steps (ordered)
+
+| Step | Task | File(s) | Depends on | Done when |
+|------|------|---------|------------|-----------|
+| FE-1 | Shared bulk request types | `src/shared/types/ApiMeetingBulkCancel.ts`, `ApiMeetingBulkSendCalendarInvite.ts` | Section 2 | Types compile |
+| FE-2 | API enum + dataloader hooks | `consoleApi.ts`, `dataloader.ts` | FE-1 | Hooks mockable in tests |
+| FE-3 | Eligibility helpers | `utils.ts` | Search result shape | Unit-testable pure functions |
+| FE-4 | Service: memos + handlers + day filter state | `service.tsx`, `types.d.ts` | FE-2, FE-3 | Handlers call API + refetch |
+| FE-5 | Bulk cancel note modal | `components/BulkCancelMeetingsModal.tsx` | FE-4 | Note → confirm → API |
+| FE-6 | Wire UI in top filters | `components/filters/index.tsx` | FE-4, FE-5 | Buttons + day filter render with correct gates |
+| FE-7 | i18n keys | `src/shared/types/I18n.ts` (+ backend copy feed) | FE-5, FE-6 | No hardcoded strings |
+| FE-8 | Integration tests | `__test__/bulkActions.test.tsx` | FE-6 | Scenarios below pass |
+| FE-9 | SCSS (if needed) | `workflow.scss` | FE-6 | Buttons align in `meetingTopFilters_right` |
+
+#### FE-1: Shared bulk request types
+- **What:** Add `ApiMeetingBulkCancel` and `ApiMeetingBulkSendCalendarInvite` matching Section 2 JSON bodies.
+- **Where:** `src/shared/types/ApiMeetingBulkCancel.ts`, `ApiMeetingBulkSendCalendarInvite.ts`
+- **Pattern:** follow `ApiAdminAcceptAllMeetingsRequest`
+- **Done when:** Imported by `dataloader.ts` without `any`
+
+#### FE-2: API enum + dataloader
+- **What:** Add `BULK_CANCEL_MEETINGS` and `BULK_SEND_CALENDAR_INVITE` to `ConsoleApi`; export `useBulkCancelMeetings` and `useBulkSendCalendarInvites` via `usePostApiData<void, RequestType>`.
+- **Where:** `src/apps/console/enums/consoleApi.ts`, `meetups/list/dataloader.ts`
+- **Pattern:** follow `useAcceptAllMeetings` (L24–26)
+- **Done when:** Enum values match BE paths `admin/meeting/bulkCancel` and `admin/meeting/bulkSendCalendarInvite`
+
+#### FE-3: Eligibility + day helpers
+- **What:** Pure functions: `getMeetingsEligibleForBulkCancel(data)`, `getMeetingsEligibleForBulkResend(data)`, `getUniqueMeetingDays(data)` using `meeting.time.timeFrom` + timezone display string.
+- **Where:** `meetups/list/utils.ts`
+- **Pattern:** follow `applyMeetingTypeFilter` / `meetingListingFilterFunction` style
+- **Done when:** Helpers used by service memos; day list sorted chronologically
+
+#### FE-4: Service extension
+- **What:** Add state `showBulkCancelModal`, `selectedMeetingDay`; memos `canShowBulkParticipantActions`, `shouldDisableBulkCancel`, `shouldDisableBulkResend`; handlers `bulkCancelMeetingsClickHandler`, `bulkResendInvitesClickHandler`, `handleBulkCancelSubmit(note)`; extend `applyAllFilters` for day; reset day on `searchClickHandler` / `handleResetFilters`.
+- **Where:** `service.tsx`, `types.d.ts`
+- **Pattern:** follow `acceptAllMeetingsClickHandler` (L422–446) + `handleCancelMeeting` confirmation chain
+- **Done when:** Bulk APIs receive `registrationParticipantId` from `state.searchedRegistrationParticipantId`; refetch uses `apiRequestObjectRef.current`
+
+#### FE-5: Bulk cancel note modal
+- **What:** Modal with single `FormTextField` for admin note; on valid submit close modal and open `initConfirmationAlert`; on confirm call bulk cancel mutation.
+- **Where:** `components/BulkCancelMeetingsModal.tsx`
+- **Pattern:** follow `CancelMeeting.tsx` note field validation (L128–143) — **without** participant dropdown or email-intro checkbox (out of scope per Section 1)
+- **Done when:** `noteForAdmin` passed to API; modal controlled by `showBulkCancelModal` on service
+
+#### FE-6: Top filters UI
+- **What:** In `meetingTopFilters_right`, inside `showAdditionalFilters` + `HasProgramWriteAuthority`:
+  1. Day filter dropdown (when `canShowBulkParticipantActions`)
+  2. Bulk Cancel outline `Button` with `tooltipContent` when disabled
+  3. Bulk Resend outline `Button` with `tooltipContent` when disabled
+  Place after `canShowAcceptAllMeetings` block (L65–77) — same bulk-action cluster.
+- **Where:** `components/filters/index.tsx`
+- **Pattern:** follow Accept All `Button` props (`isOutline`, `disabled`, `tooltipContent`)
+- **Done when:** Buttons hidden until participant search; disabled states match memos
+
+#### FE-7: i18n
+- **What:** Add keys from Section 4.6 table to `I18n.ts` (backend copy pipeline handles runtime strings).
+- **Where:** `src/shared/types/I18n.ts`
+- **Done when:** All new UI strings use `copies.get(...)`
+
+#### FE-8: Integration tests
+- **What:** Scenarios per `.cursor/skills/testing/SKILL.md`:
+  - Participant search → bulk buttons appear in top-right filter area
+  - Zero eligible meetings → buttons disabled with tooltip copy
+  - Bulk cancel: open modal → enter note → confirm alert → mutation called with correct payload
+  - Bulk resend: click → confirm alert → mutation called
+  - Day filter: options match mock meeting dates; selecting day reduces rendered list count; bulk handler still receives full raw set (spy `getParticipantsByCriteria` payload unchanged)
+- **Where:** `__test__/bulkActions.test.tsx`
+- **Pattern:** `consoleRender`, mock `dataloaderModule`, partial `useMeetingListContext` override — follow `meetups.test.tsx`
+- **Run:** `yarn test --testPathPattern=bulkActions`
+
+#### FE-9: SCSS
+- **What:** Ensure `meetingTopFilters_right` accommodates day dropdown + two extra outline buttons without wrap breakage on tablet.
+- **Where:** `workflow.scss` `.meetingTopFilters_right`
+- **Pattern:** follow `phoenix-scss` skill — extend existing block, no new global classes unless needed
+- **Done when:** Visual parity with Accept All button row
+
+### 4.8 Verification checklist (FE)
+
+- [ ] `yarn test --testPathPattern=bulkActions` (or extended `meetups`)
+- [ ] `yarn check-types` — new types + service interface compile
+- [ ] Manual: Console → Program Workflow → Meetings → search by **Participant** → verify bulk buttons + day filter in top-right with Accept All
+- [ ] Manual: change participant without re-search → bulk buttons disabled
+- [ ] Manual: apply day filter → list shrinks; bulk cancel/resend still affect all meetings from search (verify via network payload — no day field)
+- [ ] Manual: bulk cancel note → confirm → list refetches; cancelled meetings show cancelled status
+- [ ] Manual: bulk resend → confirm → refetch; no count in toast (generic success copy only)
+- [ ] API integrated against dev/staging after BE-5/BE-6 deployed
+- [ ] `CLAUDE.md` + testing skill conventions satisfied; no drive-by edits in untouched files
 
 ---
 
@@ -398,3 +620,5 @@ MeetingWorkflow/   (existing — exact path TBD)
 | 2026-05-13 | agent | Initial draft from approved requirement summary |
 | 2026-05-13 | agent | Bulk cancel/resend APIs return void (no counts); FE uses generic success toast |
 | 2026-05-13 | user | Approved (LGTM) |
+| 2026-05-13 | agent | BE plan enriched via `phoenix-be-implementation-plan` skill (§3 restructured to template) |
+| 2026-05-13 | agent | FE plan enriched via `phoenix-fe-implementation-plan` skill — verified anchors in `meetups/list/`, Accept All pattern, API integration, ordered FE steps |

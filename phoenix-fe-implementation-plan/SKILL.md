@@ -139,11 +139,16 @@ Propose feature structure consistent with **`phoenix-fe-feature`** personal skil
 **Implementation handoff (after approval):**
 
 ```text
-Implement Frontend section of docs/feature-plans/<feature-slug>-build-plan.md in phoenix-fe.
+@phoenix-feature-implementation
+@phoenix-fe-feature
+@~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md
+
+Implement Section 4 + Section 4.5 in phoenix-fe, steps in order.
 Follow CLAUDE.md, attached reference files, and patterns cited in the plan.
-Use phoenix-fe-feature for implementation and .cursor/skills/testing/SKILL.md for tests.
-Do not reformat untouched code.
+Use .cursor/skills/testing/SKILL.md for tests. Do not reformat untouched code.
 ```
+
+Plan lives in personal skills docs unless copied into the app repo.
 
 ## Interaction rules
 
