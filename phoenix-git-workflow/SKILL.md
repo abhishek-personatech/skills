@@ -1,183 +1,123 @@
 ---
 name: phoenix-git-workflow
 description: >-
-  Phoenix (phoenix + phoenix-fe) git workflow: PTI branch naming (ASF-PTI-…),
-  coding standards, tests, commit format, push, and reviewer-friendly PRs.
-  Use when creating a branch, committing, pushing, opening a PR, or when the
-  user says phoenix-git-workflow, git workflow, branch and PR, or
-  @phoenix-git-workflow.
-disable-model-invocation: true
+  Phoenix git workflow for phoenix-fe (frontend) and Phoenix (backend): branch from
+  release, JIRA-style naming, focused commits, tests before push, and draft PRs
+  with review-ready descriptions. Ask clarifying questions when ticket, scope, or
+  PR target is unclear. Use when the user says phoenix-git-workflow, git workflow,
+  create a branch, or prepare a PR for phoenix-fe or Phoenix.
 ---
 
 # Phoenix git workflow
 
-Use for **any change** in `phoenix` (backend) or `phoenix-fe` (frontend): bug fixes, small improvements, refactors, or test-only updates.
+Applies to **phoenix-fe** (React/TypeScript) and **Phoenix** (Spring Boot/Gradle). Detect which repo you are in before running project-specific commands.
 
-## Before you start — always ask
+## Before coding — ask when unclear
 
-1. **JIRA ID** — every time. Format is always `PTI-#####` (e.g. `PTI-23197`). Do not reuse from a prior chat.
-2. **Task slug** — ask the user to type a short kebab-case name each time (e.g. `fix-null-check`, `update-pagination`). Do not fetch from JIRA.
-3. **Repo** — confirm `phoenix` or `phoenix-fe` if unclear.
-4. **Branch base** — before creating the branch, confirm where to branch from. **Default:** current local branch; always get explicit confirmation (user may want `upstream/release` or another base).
-5. **PR base** — before opening the PR, confirm target branch. **Default:** `upstream/release`; always get explicit confirmation.
+Use **AskQuestion** (or ask conversationally) before starting when any of these are unknown:
 
----
+| Topic       | Ask                                                                            |
+| ----------- | ------------------------------------------------------------------------------ |
+| JIRA ticket | Ticket id (e.g. `PTI-12345`) for branch name and commit prefix                 |
+| Base branch | `release` vs `staging` vs another branch to branch from                        |
+| Scope       | Exact files/behaviour in vs out of scope                                       |
+| Tests       | Whether to add/update tests for the change                                     |
+| PR target   | Which branch the PR should merge into                                          |
 
-## Branch naming
+Do **not** block on ticket id for exploratory investigation; do block before creating a branch or commit if the user expects a JIRA-prefixed branch/commit and none was given.
 
-```text
-ASF-<JIRA_ID>-<task-slug>
-```
+## Branch setup
 
-- **Developer initial:** `ASF` (fixed)
-- **JIRA ID:** `PTI-#####` from the user
-- **Task slug:** kebab-case from the user
+1. Confirm working tree is clean (or stash/commit unrelated work).
+2. Fetch and update the agreed base branch (usually `release`):
+   ```bash
+   git fetch upstream
+   git checkout release && git pull upstream release
+   ```
+3. Create a feature branch:
+   ```bash
+   git checkout -b PTI-XXXXX-short-description
+   ```
+   Use kebab-case after the ticket id; omit ticket prefix only if the user explicitly says no ticket.
 
-**Example:** `ASF-PTI-23197-fix-null-check`
+## Implementation discipline
 
-### Create the branch
+- Match existing patterns in the touched module; read surrounding code first.
+- Keep diffs focused — no drive-by refactors.
+- **phoenix-fe:** follow `CLAUDE.md` and relevant skills (`phoenix-fe-feature`, `testing`, `phoenix-scss`).
+- **Phoenix (BE):** follow `CLAUDE.md` and existing Spring Boot patterns in the touched module; read surrounding service, repository, and test code first.
 
-After the user confirms the base:
+## Before commit
 
-```bash
-# If branching from current branch (most common):
-git checkout -b ASF-PTI-23197-fix-null-check
+Fix failures before committing.
 
-# If user confirms a remote base (e.g. upstream/release):
-git fetch upstream release
-git checkout -b ASF-PTI-23197-fix-null-check upstream/release
-```
+### phoenix-fe (frontend)
 
-Adjust remotes and ref names to match the repo.
+1. Run lints/types on edited files when practical (`yarn lint`, `yarn check-types`).
+2. Run affected tests (`yarn test --testPathPattern=... --watchAll=false`).
 
----
+### Phoenix (backend, Spring Boot)
 
-## Code change standards
+1. Run a Gradle build and tests for the affected scope:
+   ```bash
+   ./gradlew build
+   ```
+   For a narrower check, run tests for the relevant module or class:
+   ```bash
+   ./gradlew test --tests 'com.example.SomeServiceTest'
+   ```
 
-| Repo | Standards |
-|------|-----------|
-| `phoenix-fe` | `CLAUDE.md` |
-| `phoenix` | `CLAUDE.md` |
+## Commit message
 
-- Read files you will edit; **match existing patterns** (structure, naming, imports, error handling).
-- **Do not reformat** untouched code.
-- Keep the diff minimal.
+**Format (both repos):** `featureName:commitType message`
 
-### Tests (when applicable)
-
-| Repo | Test guidance |
-|------|---------------|
-| `phoenix-fe` | `.cursor/skills/testing/SKILL.md` |
-| `phoenix` | `CLAUDE.md` (test conventions) |
-
-- Update or add tests when behavior changes.
-- Use commit `taskType` `test` when the change is **only** test files.
-- Run relevant tests before commit.
-
----
-
-## Commit message format
-
-```text
-<jira-id>:<taskType> <description of change>
-```
-
-**taskType** (pick one):
-
-| Type | Use when |
-|------|----------|
-| `bug` | Bug fixes |
-| `task` | Feature work, improvements, non-bug enhancements |
-| `refactor` | Code improvement **without** behavior change |
-| `test` | Test-only changes |
+- `featureName` — alphanumeric or hyphen-separated (e.g. `email-snippet`, `PTI-23100`)
+- `commitType` — one of `task`, `test`, `bug`, `refactor`
+- `message` — short imperative description
 
 **Examples:**
 
-```text
-PTI-23197:bug Fix null check on meeting list pagination
-PTI-23197:task Add bulk action confirmation dialog
-PTI-23197:refactor Extract shared date formatter utility
-PTI-23197:test Add coverage for empty selection edge case
+```
+email-snippet:task Disable snippet properties until production ready
+PTI-23100:task Show force-sync button when only action applies
 ```
 
----
+If the user provides a JIRA id, prefer it as `featureName` (e.g. `PTI-23100:task ...`).
 
-## Push
+**phoenix-fe only:** commit messages are validated by `scripts/validate-commit-message.js`; merge commits skip validation.
+
+**Phoenix (BE):** no commit-message validator script — follow the same format by convention.
+
+## Push and PR
 
 ```bash
-git push -u origin ASF-PTI-23197-fix-null-check
+git push -u origin PTI-XXXXX-short-description
 ```
 
----
+Open a **draft PR** against **`upstream/release`** (default for both repos).
 
-## Pull request
-
-### 1. Confirm base branch
-
-Ask the user before creating the PR:
-
-> Which branch should this PR target? Default is **upstream/release** — confirm or specify another.
-
-### 2. PR title
-
-Use the JIRA ID and a short, clear title:
-
-```text
-PTI-23197: Fix null check on meeting list pagination
-```
-
-### 3. PR body template (reviewer-friendly)
-
-Fill every section so reviewers rarely need to ask follow-ups:
-
-```markdown
-## Summary
-[1–3 sentences: what this change does and why.]
-
-## JIRA
-[PTI-#####](<jira-url-if-known>)
-
-## What changed
-- [Bullet list of concrete code/test changes]
-
-## Impact
-- **User-facing:** [None / describe UI or API behavior change]
-- **Risk:** [Low / Medium — why]
-- **Areas touched:** [e.g. meeting list, pagination hook]
-
-## How to verify
-1. [Step a reviewer or QA can follow]
-2. [Expected result]
-
-## Tests
-- [ ] Unit/integration tests added or updated
-- [ ] [Command run, e.g. `npm test -- <path>` or backend equivalent]
-- [ ] Manual verification: [brief note if applicable]
-```
-
-Create the PR only after base is confirmed:
+**phoenix-fe:**
 
 ```bash
-gh pr create --base release --head ASF-PTI-23197-fix-null-check \
-  --title "PTI-23197: Fix null check on meeting list pagination" \
-  --body-file /tmp/pr-body.md
+gh pr create --draft \
+  --repo personatech-infra/phoenix-fe \
+  --base release \
+  --head <your-github-user>:PTI-XXXXX-short-description
 ```
 
-Adjust `--base`, remotes, and repo flags to match the project.
+**Phoenix (backend):**
 
----
-
-## End-to-end checklist
-
+```bash
+gh pr create --draft \
+  --repo personatech-infra/phoenix \
+  --base release \
+  --head <your-github-user>:PTI-XXXXX-short-description
 ```
-- [ ] JIRA ID collected (PTI-#####)
-- [ ] Task slug collected from user
-- [ ] Branch base confirmed (default: current local branch)
-- [ ] Branch created: ASF-<JIRA_ID>-<task-slug>
-- [ ] Code follows CLAUDE.md and local patterns
-- [ ] Tests updated if applicable
-- [ ] Commit: PTI-#####:<taskType> <description>
-- [ ] Pushed to origin
-- [ ] PR base confirmed (default: upstream/release)
-- [ ] PR opened with reviewer-friendly body
-```
+
+Push to `origin` (your fork); target the upstream repo `release` branch as the base.
+
+**PR description** (review-ready):
+
+- **What changed** — concise summary of the diff.
+- **Why** — ticket context or problem being solved.
+- **How to verify** — manual steps and/or commands (e.g. `yarn test ...`, `./gradlew test ...`).
