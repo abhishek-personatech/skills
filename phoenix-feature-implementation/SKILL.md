@@ -129,5 +129,7 @@ Continue implementation from step **BE-4** (or **FE-3**). Steps BE-1–BE-3 are 
 
 ## After implementation
 
-- Open PRs per repo; link the same plan path in PR description.
+- Run **dev testing** per [phoenix-dev-testing](../phoenix-dev-testing/SKILL.md) (plan Section 9); multiple rounds OK.
+- Open **draft** PRs per [phoenix-git-workflow](../phoenix-git-workflow/SKILL.md) — **stub body only**; plan path in stub, not a generated summary.
+- **Ready for review** only after dev testing sign-off — full PR description written **once** at that step.
 - For review feedback: `resolve-review-comments` in the repo with the PR open.

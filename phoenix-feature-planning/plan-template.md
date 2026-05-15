@@ -5,7 +5,12 @@
 | **Ticket / ID** | [e.g. PTI-12345] |
 | **Status** | Draft \| In review \| Approved |
 | **Document type** | Design \| Design + Implementation |
-| **Implementation status** | Pending repo enrichment \| BE enriched \| FE enriched \| Ready to implement |
+| **Implementation status** | Pending repo enrichment \| BE enriched \| FE enriched \| Ready to implement \| Implemented |
+| **Repo scope** | BE \| FE \| both |
+| **Dev testing status** | not_started \| in_progress \| passed \| waived |
+| **Dev testing round** | 0 |
+| **Dev testing mode** | pre_pr \| post_draft_pr |
+| **PR status** | none \| draft \| ready_for_review |
 | **Author** | [agent + user] |
 | **Repos** | `phoenix` (BE), `phoenix-fe` (FE) |
 | **Last updated** | [YYYY-MM-DD] |
@@ -248,9 +253,43 @@ FeatureName/
 
 ---
 
-## 8. Revision history
+## 9. Dev testing
+
+| Field | Value |
+|-------|-------|
+| **Status** | not_started \| in_progress \| passed \| waived |
+| **Environment** | local \| dev \| staging |
+| **Mode** | pre_pr \| post_draft_pr |
+| **PR URLs** | BE: … \| FE: … |
+
+### Test matrix
+
+| # | Scenario | Surface | Role | Pass? |
+|---|----------|---------|------|-------|
+| 1 | ... | ... | ... | ☐ |
+
+### Round log
+
+#### Round 1 — YYYY-MM-DD
+
+| ID | Finding | Class | Repo | Fix step | Status |
+|----|---------|-------|------|----------|--------|
+| DT-1 | ... | P0 \| P1 \| P2 \| out_of_scope | BE \| FE | BE-7b / FE-8b | open \| fixed \| deferred |
+
+### Sign-off (required before ready-for-review)
+
+- [ ] All P0 from latest round fixed
+- [ ] All P1 fixed or explicitly deferred by user
+- [ ] Automated tests green (per phoenix-git-workflow) for repos in scope
+- [ ] `dev_testing_status` set to `passed` or `waived` in metadata above
+- [ ] User sign-off for marking PR(s) ready for review
+
+---
+
+## 10. Revision history
 
 | Date | Author | Change |
 |------|--------|--------|
 | YYYY-MM-DD | agent | Initial draft |
 | YYYY-MM-DD | agent | [Review feedback summary] |
+| YYYY-MM-DD | agent | Dev testing Round N — [summary] |

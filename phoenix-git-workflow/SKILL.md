@@ -2,10 +2,11 @@
 name: phoenix-git-workflow
 description: >-
   Phoenix git workflow for phoenix-fe (frontend) and Phoenix (backend): branch from
-  release, JIRA-style naming, focused commits, tests before push, and draft PRs
-  with review-ready descriptions. Ask clarifying questions when ticket, scope, or
-  PR target is unclear. Use when the user says phoenix-git-workflow, git workflow,
-  create a branch, or prepare a PR for phoenix-fe or Phoenix.
+  release, JIRA-style naming, focused commits, tests before push, draft PRs with a
+  minimal stub body, and a single review-ready PR description when marking ready
+  for review (after phoenix-dev-testing). Ask clarifying questions when ticket,
+  scope, or PR target is unclear. Use when the user says phoenix-git-workflow, git
+  workflow, create a branch, push, draft PR, or mark PR ready for review.
 ---
 
 # Phoenix git workflow
@@ -90,11 +91,25 @@ If the user provides a JIRA id, prefer it as `featureName` (e.g. `PTI-23100:task
 
 ## Push and PR
 
+Push to `origin` (your fork); target **`upstream/release`** as the PR base (default for both repos).
+
 ```bash
 git push -u origin PTI-XXXXX-short-description
 ```
 
-Open a **draft PR** against **`upstream/release`** (default for both repos).
+### Two PR description modes (do not mix)
+
+| Step | PR body | Agent rule |
+|------|---------|------------|
+| **Create draft PR** | Minimal **stub** only | Use [pr-draft-stub.md](pr-draft-stub.md) — fill ticket + plan path; **do not** LLM-summarize the diff |
+| **Dev-testing pushes** | Unchanged | `git push` only — **never** `gh pr edit` body between rounds |
+| **Mark ready for review** | Full **review-ready** body **once** | After `phoenix-dev-testing` sign-off (`passed` \| `waived`); generate from **final** diff + plan Section 9 |
+
+Draft PRs may be opened **before**, **during**, or **after** dev testing — see [phoenix-dev-testing](../phoenix-dev-testing/SKILL.md). Only **ready-for-review** gets the full description.
+
+### Create draft PR (stub body)
+
+Copy [pr-draft-stub.md](pr-draft-stub.md), replace `PTI-XXXXX` and `<feature-slug>`, save as a temp file, then:
 
 **phoenix-fe:**
 
@@ -102,7 +117,9 @@ Open a **draft PR** against **`upstream/release`** (default for both repos).
 gh pr create --draft \
   --repo personatech-infra/phoenix-fe \
   --base release \
-  --head <your-github-user>:PTI-XXXXX-short-description
+  --head <your-github-user>:PTI-XXXXX-short-description \
+  --title "PTI-XXXXX: <short title>" \
+  --body-file /path/to/pr-draft-stub-filled.md
 ```
 
 **Phoenix (backend):**
@@ -111,13 +128,41 @@ gh pr create --draft \
 gh pr create --draft \
   --repo personatech-infra/phoenix \
   --base release \
-  --head <your-github-user>:PTI-XXXXX-short-description
+  --head <your-github-user>:PTI-XXXXX-short-description \
+  --title "PTI-XXXXX: <short title>" \
+  --body-file /path/to/pr-draft-stub-filled.md
 ```
 
-Push to `origin` (your fork); target the upstream repo `release` branch as the base.
+Update plan metadata: `pr_status: draft`, record PR URL(s) in Section 9 or plan metadata.
 
-**PR description** (review-ready):
+### Push during dev testing (no body edit)
 
-- **What changed** — concise summary of the diff.
+```bash
+git push origin PTI-XXXXX-short-description
+```
+
+Do **not** run `gh pr edit` unless marking ready for review.
+
+### Mark ready for review (full body — once)
+
+**Requires:** plan `dev_testing_status` is `passed` or `waived` (see phoenix-dev-testing).
+
+1. Generate the review-ready body from the **final** diff and plan Section 9 (dev test matrix + rounds completed).
+2. Write to a temp file; update the PR **once**:
+
+```bash
+gh pr edit <number> --body-file /path/to/pr-review-ready.md
+gh pr ready <number>
+```
+
+For cross-repo features, each repo PR gets its own body; cross-link the sibling PR in **Related PRs**.
+
+**Review-ready body** (generate at this step only):
+
+- **What changed** — concise summary of the final diff.
 - **Why** — ticket context or problem being solved.
-- **How to verify** — manual steps and/or commands (e.g. `yarn test ...`, `./gradlew test ...`).
+- **How to verify** — manual steps from Section 9 + commands (e.g. `yarn test ...`, `./gradlew test ...`).
+- **Related PRs** — link sibling repo PR if applicable.
+- **Plan** — path to build plan file.
+
+Update plan metadata: `pr_status: ready_for_review`.

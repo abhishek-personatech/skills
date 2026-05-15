@@ -1,6 +1,6 @@
 ### 1. Phoenix worker — full feature (primary)
 
-Use `@phoenix-worker` to run the full lifecycle: design → enrichment → implementation → git/PR. Not every feature needs both repos — say **BE only**, **FE only**, or **both** up front; the agent will skip the other side only with your explicit consent. Open **one repo per chat** unless you use a multi-root workspace.
+Use `@phoenix-worker` to run the full lifecycle: design → enrichment → implementation → **dev testing** → git/PR → review. Not every feature needs both repos — say **BE only**, **FE only**, or **both** up front; the agent will skip the other side only with your explicit consent. Open **one repo per chat** unless you use a multi-root workspace.
 
 **New feature (no plan yet):**
 
@@ -10,9 +10,10 @@ Use `@phoenix-worker` to run the full lifecycle: design → enrichment → imple
 Feature: <one-line summary>
 Ticket: PTI-XXXXX
 Repos: BE / FE / both  ← e.g. "FE only — no backend changes"
+Dev testing: pre_pr | post_draft_pr  ← optional; post_draft_pr common for full-stack
 Plan: create new
 
-Start from Phase 0. Guide me through design, enrichment, implementation, and PRs.
+Start from Phase 0. Guide me through design, enrichment, implementation, dev testing, and PRs.
 ```
 
 **BE-only:**
@@ -46,7 +47,7 @@ Plan: create new
 Continue from the current phase. Phases completed so far: <list or "infer from plan">.
 ```
 
-**Phases (in order):**
+**Phases (in order; Phase 6 ↔ 7 may interleave):**
 
 | Phase | What | Workspace |
 |-------|------|-----------|
@@ -56,10 +57,20 @@ Continue from the current phase. Phases completed so far: <list or "infer from p
 | 3 | FE enrichment | Open `phoenix-fe` — skip if BE-only |
 | 4 | BE implementation | Open `phoenix` — skip if FE-only |
 | 5 | FE implementation | Open `phoenix-fe` — skip if BE-only |
-| 6 | Git / draft PR | Per repo in scope — `phoenix-git-workflow` |
-| 7 | Review comments | Repo with PR — `resolve-review-comments` |
+| 6 | Dev testing (repeatable rounds) | `phoenix-dev-testing` — before or after draft PR |
+| 7 | Git / PR | `phoenix-git-workflow` — stub at draft; **full body only at ready-for-review** |
+| 8 | Review comments | Repo with PR — `resolve-review-comments` |
 
 Plan file (default): `~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md` — always @-attach it when switching repos or sessions.
+
+**Dev testing only (mid-flight):**
+
+```
+@phoenix-dev-testing
+@~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md
+
+Round 2. Draft PR open — push fixes; do not edit PR body until ready for review.
+```
 
 ---
 
@@ -90,3 +101,10 @@ Start with FE-1 — confirm approach, then implement.
 @~/.cursor/skills/docs/feature-plans/console-meeting-workflow-bulk-actions-build-plan.md
 
 Continue from step BE-4. BE-1–BE-3 are done.
+
+### 5. Mark PR ready for review (after dev testing sign-off)
+
+@phoenix-git-workflow
+@~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md
+
+Dev testing passed. Write full PR description once, then gh pr ready. Do not update PR body on earlier pushes.
