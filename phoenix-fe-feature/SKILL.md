@@ -41,6 +41,21 @@ Use this baseline unless the feature is tiny:
 - Keep prop names consistent with upstream metadata names to reduce mapping errors.
 - Avoid premature abstractions; only introduce new layers after repeated usage.
 
+## Shared / common components (`src/shared/`, cross-feature console components)
+
+During **feature work**, prefer solving the requirement inside the feature module (`apps/console/modules/...`) using existing shared APIs.
+
+**Do not modify shared or widely reused components** (e.g. `src/shared/components/*`, shared hooks, `MenuDropdown`, `ContextMenu`) unless **all** of the following are true:
+
+1. The user has **explicitly approved** the shared change (or asked for it directly).
+2. There is a **solid, stated reason** the feature cannot be implemented without it (e.g. no supported prop/variant, bug in the shared component, contract required by multiple features).
+3. The change is **minimal** (smallest diff that unblocks the feature) and does not expand shared surface area without need.
+
+When a gap appears (unsupported variant, missing `testId`, styling hook):
+
+- First try **feature-local** workarounds: wrapper element, existing variants (`Variant.PRIMARY`, `Variant.ERROR`), composition, feature SCSS under `workflow.scss` / feature `*.scss`.
+- If a shared change is still necessary, **stop and ask the user** with a short proposal (what to change, why feature-local is insufficient, impact on other consumers).
+
 ## UX and copy standards
 
 - No hardcoded user-facing strings in feature UI.

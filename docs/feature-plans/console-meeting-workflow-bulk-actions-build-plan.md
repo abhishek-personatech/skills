@@ -12,7 +12,7 @@
 | **dev_testing_status** | passed |
 | **dev_testing_mode** | post_draft_pr |
 | **dev_testing_round** | 1 |
-| **pr_status** | ready_for_review (BE body applied 2026-05-15) |
+| **pr_status** | ready_for_review (BE + FE bodies applied 2026-05-15) |
 | **BE PR** | https://github.com/personatech-infra/phoenix/pull/6047 |
 | **BE branch** | `asf-PTI-23163-console-meeting-workflow-improvements` |
 | **FE PR** | https://github.com/personatech-infra/phoenix-fe/pull/6129 |
@@ -674,7 +674,7 @@ const shouldDisableBulkResend = !isSameParticipant || !rawData.some(m => m.canSe
 | DT-2 | Bulk cancel should support email introduction parity with single cancel | P1 | FE | `21a71dd762` — `convertToEmailIntroduction` + `emailIntroductionNote` on request + modal | fixed |
 | DT-3 | Bulk cancel modal closed before user saw API error | P0 | FE | `f0dca99f0c` — keep modal open until cancel succeeds | fixed |
 | DT-4 | Plan used `noteForAdmin` / `ApiMeetingBulkCancel` names | P2 | FE | `18ec910be7` — `note`, `ApiMeetingBulkCancelRequest` | fixed (doc only) |
-| DT-5 | Bulk cancel modal body uses hardcoded HTML; `console.meeting.bulk.cancel.modal.note` not wired | P2 | FE | — | deferred (copy/i18n follow-up) |
+| DT-5 | Bulk cancel modal body uses hardcoded HTML; note copy not wired | P2 | FE | `b43e336ee9` — `console.meeting.bulk.cancel.note` via `useCopies` | fixed |
 | DT-6 | Plan contract used `noteForAdmin`; single cancel uses `note` | P1 | BE | `5cf84e8167` — `ApiMeetingBulkCancelRequest.note` | fixed |
 | DT-7 | Plan marked email intro out of scope for bulk cancel | P1 | BE | `5cf84e8167` — `convertToEmailIntroduction` + `emailIntroductionNote` on bulk request | fixed |
 | DT-8 | DTO names in plan lacked `Request` suffix | P2 | BE | `5cf84e8167` — `ApiMeetingBulk*Request` | fixed (doc + code) |
@@ -687,13 +687,13 @@ const shouldDisableBulkResend = !isSameParticipant || !rawData.some(m => m.canSe
 - [x] `dev_testing_status` set to `passed` in metadata
 - [x] User sign-off for dev testing (2026-05-15 catch-up)
 - [x] BE review-ready PR body applied — https://github.com/personatech-infra/phoenix/pull/6047 (2026-05-15)
-- [ ] FE review-ready PR body — https://github.com/personatech-infra/phoenix-fe/pull/6129 (pending user approval)
+- [x] FE review-ready PR body — https://github.com/personatech-infra/phoenix-fe/pull/6129 (2026-05-15)
 
 ### Implementation deltas vs plan (FE — for reviewers)
 
 | Plan | Shipped |
 |------|---------|
-| Two outline buttons (Bulk Cancel, Bulk Resend) | `NavMenuPopover` labeled **Bulk actions**; menu items shown only when eligible |
+| Two outline buttons (Bulk Cancel, Bulk Resend) | `ContextMenu` (⋮ dots); menu items shown only when eligible (`b43e336ee9`) |
 | Buttons **disabled** + tooltips when zero eligible | Menu items **hidden** when no eligible meetings; no disabled-tooltip copy keys |
 | `noteForAdmin` on bulk cancel request | `note` on `ApiMeetingBulkCancelRequest` |
 | `ApiMeetingBulkCancel` / `ApiMeetingBulkSendCalendarInvite` types | `ApiMeetingBulkCancelRequest` / `ApiMeetingBulkSendCalendarInviteRequest` |
@@ -725,3 +725,4 @@ const shouldDisableBulkResend = !isSameParticipant || !rawData.some(m => m.canSe
 | 2026-05-13 | agent | FE plan enriched via `phoenix-fe-implementation-plan` skill — verified anchors in `meetups/list/`, Accept All pattern, API integration, ordered FE steps |
 | 2026-05-15 | agent | Catch-up (FE): metadata (PTI-23163, PR #6129, `dev_testing_status: passed`); Section 9 Round 1 retrospective; success criteria + §4.8 ticked; FE implementation deltas documented |
 | 2026-05-15 | agent | Catch-up (BE): metadata (PR #6047, 2 commits); Section 2 contract + §3 anchors/steps aligned to shipped DTOs and email-intro fields; §3.7 ticked; Section 9 BE matrix + deltas + DT-6–DT-8 |
+| 2026-05-18 | agent | FE UX: ContextMenu bulk menu (`b43e336ee9`); DT-5 fixed; FE PR #6129 review-ready body enriched; plan deltas updated |
