@@ -1,8 +1,10 @@
-# Phoenix Cursor Skills
+# Phoenix Agent Skills
 
-Shared [Cursor Agent Skills](https://cursor.com/docs/agent/skills) for Phoenix backend (`phoenix`) and frontend (`phoenix-fe`) work: new features, bug fixes, refactors, dev testing, git/PR workflow, and review feedback.
+Shared agent skills for Phoenix backend (`phoenix`) and frontend (`phoenix-fe`) work: new features, bug fixes, refactors, dev testing, git/PR workflow, and review feedback.
 
-Skills are markdown playbooks the agent reads when you `@mention` them in chat. They encode team conventions (branch naming, plan structure, implementation order, PR rules) so delivery stays consistent across engineers.
+Each skill is a `SKILL.md` playbook following the [Agent Skills](https://agentskills.io/) open standard. The same files work in **Cursor**, **Claude Code**, and **OpenAI Codex**—only how you install and invoke them differs.
+
+Skills encode team conventions (branch naming, plan structure, implementation order, PR rules) so delivery stays consistent across engineers and tools.
 
 ## Quick start
 
@@ -25,15 +27,17 @@ If you already have other skills in that folder, clone to a subfolder or merge c
 | Frontend | `phoenix-fe` |
 | Full-stack | **One repo per chat** (recommended), or a multi-root workspace with both |
 
-### 3. Start a chat with a skill
+### 3. Start a session with a skill
 
-Type `@` in Agent chat and pick a skill (e.g. `@phoenix-worker`), or paste a prompt from [prompt-guide/how-to-use.md](prompt-guide/how-to-use.md).
+In **Cursor**, type `@` and pick a skill (e.g. `@phoenix-worker`). In **Claude Code**, use `/phoenix-worker`. In **Codex**, use `$phoenix-worker` or ask Codex to follow that skill by name.
 
-Always include your JIRA ticket, repo scope (**BE / FE / both**), and—when resuming—`@` the feature build plan file.
+Copy-paste prompts live in [prompt-guide/how-to-use.md](prompt-guide/how-to-use.md) (written for Cursor `@` syntax—see [Using with Claude Code and Codex](#using-with-claude-code-and-codex) to adapt).
+
+Always include your JIRA ticket, repo scope (**BE / FE / both**), and attach or reference the feature build plan file when resuming.
 
 ### 4. Prerequisites
 
-- **Cursor** with Agent mode and skills enabled
+- **An agent tool:** Cursor (Agent + skills), [Claude Code](https://docs.anthropic.com/en/docs/claude-code/skills), or [Codex](https://developers.openai.com/codex/skills)
 - Access to **`phoenix`** and/or **`phoenix-fe`** repos
 - **`gh`** CLI authenticated for PRs and review comments (used by git and review skills)
 - For FE work: follow each repo’s **`CLAUDE.md`** and `phoenix-fe`’s `.cursor/skills/testing/SKILL.md` (referenced by FE skills)
@@ -186,6 +190,136 @@ After design approval, the plan is saved as:
 
 (An example plan ships in this repo under `docs/feature-plans/`.)
 
+## Using with Claude Code and Codex
+
+This repo is authored for Cursor, but the skill **content** is tool-agnostic. Keep the canonical clone at `~/.cursor/skills` so paths inside skills and prompts (`~/.cursor/skills/docs/feature-plans/...`) stay correct, then expose the skill folders to other tools.
+
+### Where each tool loads skills
+
+| Tool | Personal skills location | How you invoke |
+|------|--------------------------|----------------|
+| **Cursor** | `~/.cursor/skills/<skill-name>/SKILL.md` | `@phoenix-worker` in Agent chat |
+| **Claude Code** | `~/.claude/skills/<skill-name>/SKILL.md` | `/phoenix-worker` (directory name) or describe the task and let Claude match on `description` |
+| **Codex** | `~/.agents/skills/<skill-name>/SKILL.md` | `$phoenix-worker`, `/skills`, or describe the task (matches on `description`) |
+
+Project-scoped copies are also supported: `.claude/skills/` (Claude Code) and `.agents/skills/` under the repo root (Codex). Prefer **personal** installs for Phoenix skills so every repo can use the same playbooks.
+
+### One clone, three tools (symlinks)
+
+After cloning to `~/.cursor/skills`:
+
+```bash
+SKILLS_ROOT=~/.cursor/skills
+
+# Claude Code — one symlink per skill directory
+mkdir -p ~/.claude/skills
+for d in "$SKILLS_ROOT"/phoenix-* "$SKILLS_ROOT"/resolve-review-comments; do
+  [ -d "$d" ] && ln -sfn "$d" ~/.claude/skills/"$(basename "$d")"
+done
+
+# Codex — same pattern
+mkdir -p ~/.agents/skills
+for d in "$SKILLS_ROOT"/phoenix-* "$SKILLS_ROOT"/resolve-review-comments; do
+  [ -d "$d" ] && ln -sfn "$d" ~/.agents/skills/"$(basename "$d")"
+done
+```
+
+Restart Claude Code or Codex if a new skill does not appear. Claude Code also watches `~/.claude/skills` for live updates in many cases.
+
+`prompt-guide/` and `docs/feature-plans/` stay only under `~/.cursor/skills`; other tools read them when you **paste the path** or **open that file** in the session—there is no `@` attach UI in the terminal.
+
+### Map Cursor prompts to other tools
+
+Replace `@skill` and `@path` in [prompt-guide/how-to-use.md](prompt-guide/how-to-use.md) as follows:
+
+| Cursor | Claude Code | Codex |
+|--------|-------------|-------|
+| `@phoenix-worker` | `/phoenix-worker` or “Follow the phoenix-worker skill” | `$phoenix-worker` or “Use the phoenix-worker skill” |
+| `@phoenix-feature-implementation` | `/phoenix-feature-implementation` | `$phoenix-feature-implementation` |
+| `@~/.cursor/skills/docs/feature-plans/foo-build-plan.md` | “Read `~/.cursor/skills/docs/feature-plans/foo-build-plan.md` and follow it” | Same (absolute path), or open the file in your editor session |
+
+**Universal fallback** (works in any tool if slash/`$` skills are not set up):
+
+```text
+Read and strictly follow ~/.cursor/skills/phoenix-worker/SKILL.md.
+
+Feature: <summary>
+Ticket: PTI-XXXXX
+Repos: BE / FE / both
+Also read ~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md if it exists.
+
+Start from Phase 0.
+```
+
+### Example: full feature in Claude Code
+
+```text
+/phoenix-worker
+
+Feature: Bulk actions on console meeting workflow
+Ticket: PTI-12345
+Repos: both
+Dev testing: post_draft_pr
+Plan: create new
+
+Start from Phase 0. Build plan path: ~/.cursor/skills/docs/feature-plans/
+```
+
+Run from the repo you are implementing (`phoenix` or `phoenix-fe`), or use `claude --add-dir` / Codex from that directory so the agent can read the codebase.
+
+### Example: full feature in Codex
+
+```text
+$phoenix-worker
+
+Feature: Bulk actions on console meeting workflow
+Ticket: PTI-12345
+Repos: both
+Plan: create new
+
+Follow ~/.cursor/skills/phoenix-worker/SKILL.md. When a plan exists, use ~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md.
+```
+
+### Example: implementation only (backend)
+
+**Claude Code** (in `phoenix`):
+
+```text
+/phoenix-feature-implementation
+
+Implement Section 3 only, steps in order (Section 3.6).
+Plan: ~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md
+Follow CLAUDE.md and Section 2 API contract. Start with BE-1.
+```
+
+**Codex** (in `phoenix`):
+
+```text
+$phoenix-feature-implementation
+
+Same scope as above. Read the plan file at ~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md first.
+```
+
+### Tool-specific notes
+
+**Claude Code**
+
+- Slash commands use the **folder name** (`phoenix-worker`), not only the `name` field in YAML frontmatter.
+- Skills with `disable-model-invocation: true` in frontmatter are still valid; you invoke them explicitly with `/` or by asking Claude to follow the file.
+- Optional: add a short pointer in each repo’s `CLAUDE.md`: “Phoenix delivery skills live in `~/.cursor/skills`; invoke via `/phoenix-worker` when symlinked to `~/.claude/skills`.”
+
+**Codex**
+
+- Skills are discovered from `~/.agents/skills` and repo `.agents/skills`; use `$skill-name` for explicit invocation.
+- Put durable repo rules in **`AGENTS.md`** (build/test commands, conventions). Keep multi-phase Phoenix workflows in **skills**, not duplicated into `AGENTS.md`.
+- Optional: in `~/.codex/config.toml`, disable noisy skills with `[[skills.config]]` if the skills list grows large.
+
+**All tools**
+
+- Workflow order is unchanged: design → enrichment → implementation → dev testing → PR → review.
+- One implementation repo per session is still the safest default in CLI tools, same as Cursor.
+- `gh` auth is required for `phoenix-git-workflow` and `resolve-review-comments` everywhere.
+
 ## Contributing
 
 - **New or updated skills** — Edit the relevant `SKILL.md`; keep frontmatter `name` and `description` accurate so `@` discovery works.
@@ -196,7 +330,10 @@ Pull requests to this repo should be reviewed like any shared tooling: changes a
 
 ## Further reading
 
-- [prompt-guide/how-to-use.md](prompt-guide/how-to-use.md) — Prompt cookbook
+- [prompt-guide/how-to-use.md](prompt-guide/how-to-use.md) — Prompt cookbook (Cursor `@` syntax)
 - [phoenix-worker/SKILL.md](phoenix-worker/SKILL.md) — Phase checklist and orchestration rules
 - [phoenix-feature-planning/plan-template.md](phoenix-feature-planning/plan-template.md) — Build plan structure
-- Cursor docs: [Agent Skills](https://cursor.com/docs/agent/skills)
+- [Agent Skills specification](https://agentskills.io/)
+- Cursor: [Agent Skills](https://cursor.com/docs/agent/skills)
+- Claude Code: [Skills](https://docs.anthropic.com/en/docs/claude-code/skills)
+- Codex: [Agent Skills](https://developers.openai.com/codex/skills)
