@@ -119,8 +119,13 @@ Open `phoenix-fe` (or provide PR number). Attach build plan if you have it.
 PR: personatech-infra/phoenix-fe#<number>
 Ticket: PTI-XXXXX
 
-Review for coding standards, intended outcome, shared-component impact, and regression risk.
-Follow CLAUDE.md; use phoenix-fe-feature and phoenix-scss for touched areas.
+Read-only review — do not edit or commit code.
+
+1. Does the PR achieve its stated goal (feature/bugfix/task)?
+2. Were my prior review comments addressed (if any)?
+3. CLAUDE.md + phoenix-fe-feature / phoenix-scss / testing for touched areas.
+4. Suggest improvements and optimizations in review text only.
+5. Post to GitHub only if I ask.
 ```
 
 Optional deep checklist: `~/.cursor/skills/phoenix-fe-reviewer/review-checklist.md`

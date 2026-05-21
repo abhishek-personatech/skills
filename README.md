@@ -59,7 +59,7 @@ Always include your JIRA ticket, repo scope (**BE / FE / both**), and attach or 
 ├── phoenix-feature-implementation/    # Implement from an enriched plan
 ├── phoenix-fe-feature/                # FE structure, hooks, tests
 ├── phoenix-scss/                      # FE styling conventions
-├── phoenix-fe-reviewer/              # Review others' phoenix-fe PRs
+├── phoenix-fe-reviewer/              # Read-only PR review (intent + standards; no code changes)
 ├── phoenix-dev-testing/               # Repeatable dev test rounds
 ├── phoenix-git-workflow/              # Branch, commit, draft PR, ready-for-review
 └── resolve-review-comments/           # Address PR review feedback
@@ -159,7 +159,7 @@ Dev testing passed. Write full PR description once, then mark ready for review.
 | **phoenix-feature-implementation** | Write code from an enriched plan |
 | **phoenix-fe-feature** | FE folder structure, hooks, context, integration tests |
 | **phoenix-scss** | CSS/SCSS changes in `phoenix-fe` |
-| **phoenix-fe-reviewer** | Review others' `phoenix-fe` PRs (standards, intended outcome, shared-component risk) |
+| **phoenix-fe-reviewer** | Read-only review of others' PRs: stated goal met, prior comments, standards, improvements (no implementation) |
 | **phoenix-dev-testing** | Structured dev test rounds and sign-off |
 | **phoenix-git-workflow** | Branch from release, commits, draft PR, ready-for-review |
 | **resolve-review-comments** | Triage and fix PR review comments one by one (author) |

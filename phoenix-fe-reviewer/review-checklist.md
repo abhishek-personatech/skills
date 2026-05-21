@@ -2,20 +2,47 @@
 
 Use with [SKILL.md](SKILL.md). **`CLAUDE.md` in `phoenix-fe` is authoritative** — this file is a reviewer aid only.
 
+## Read-only guard
+
+- [ ] No files edited, committed, or pushed on the PR branch
+- [ ] Feedback is review text (and optional `gh pr review`), not a patch
+- [ ] If implementation was started by mistake, changes reverted before continuing
+
 ## Context
 
 - [ ] Ticket / PR title matches the change
 - [ ] PR description states what changed and how to verify
 - [ ] Scope matches ticket (no unrelated refactors)
+- [ ] PR description matches **actual** code (no stale claims about removed routes, components, etc.)
 - [ ] FE-only PR does not silently require undeployed BE changes (or BE PR is linked)
+- [ ] Copy sheet / `I18n` keys called out when new UI strings were added
 
-## Intended outcome
+## Prior review comments (when user or thread already reviewed)
 
-- [ ] Primary user flow works end-to-end in code review (happy path)
+- [ ] Every prior inline or summary comment listed
+- [ ] Each marked: Addressed / Partial / Not addressed / Obsolete (with reason)
+- [ ] Gaps tied to file/symbol, not only a high-level table
+
+## Intended outcome (required)
+
+- [ ] PR goal restated in one sentence
+- [ ] **Intent matrix** filled: each claimed deliverable vs Met/Partial/No
+- [ ] Primary user/operator flow traced in the diff (happy path)
 - [ ] Loading / error / empty states present and wired
 - [ ] Permissions and feature flags respected
-- [ ] Edge cases called out in ticket are handled (not only happy path)
+- [ ] Edge cases from ticket/PR handled (not only happy path)
+- [ ] No silent no-ops (e.g. button with no context, modal before data)
 - [ ] No regression in adjacent flows in the same module
+- [ ] Explicit **Intent sign-off** line in the review report
+
+## Improvements and optimizations (suggest only — do not implement)
+
+- [ ] UX improvements noted (modals, toasts, feedback loops)
+- [ ] Data-layer improvements (cache vs refetch, invalidation)
+- [ ] React structure (effects, memoization, service boundaries)
+- [ ] Reuse opportunities (existing components/hooks)
+- [ ] i18n / copy gaps listed with suggested keys
+- [ ] PR description / test plan updates suggested if out of date
 
 ## Feature structure ([phoenix-fe-feature](../phoenix-fe-feature/SKILL.md))
 
@@ -70,5 +97,6 @@ Use with [SKILL.md](SKILL.md). **`CLAUDE.md` in `phoenix-fe` is authoritative** 
 
 ## Merge gate
 
+- [ ] **Intent** Met or Partially met with agreed follow-ups — not Not met
 - [ ] All 🔴 Critical findings resolved or accepted with explicit user/lead sign-off
 - [ ] Shared-change risk acknowledged in PR or review thread
