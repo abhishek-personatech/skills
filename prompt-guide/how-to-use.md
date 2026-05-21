@@ -108,3 +108,19 @@ Continue from step BE-4. BE-1–BE-3 are done.
 @~/.cursor/skills/docs/feature-plans/<feature-slug>-build-plan.md
 
 Dev testing passed. Write full PR description once, then gh pr ready. Do not update PR body on earlier pushes.
+
+### 6. Review someone else's phoenix-fe PR
+
+Open `phoenix-fe` (or provide PR number). Attach build plan if you have it.
+
+```
+@phoenix-fe-reviewer
+
+PR: personatech-infra/phoenix-fe#<number>
+Ticket: PTI-XXXXX
+
+Review for coding standards, intended outcome, shared-component impact, and regression risk.
+Follow CLAUDE.md; use phoenix-fe-feature and phoenix-scss for touched areas.
+```
+
+Optional deep checklist: `~/.cursor/skills/phoenix-fe-reviewer/review-checklist.md`

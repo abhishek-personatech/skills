@@ -59,6 +59,7 @@ Always include your JIRA ticket, repo scope (**BE / FE / both**), and attach or 
 ├── phoenix-feature-implementation/    # Implement from an enriched plan
 ├── phoenix-fe-feature/                # FE structure, hooks, tests
 ├── phoenix-scss/                      # FE styling conventions
+├── phoenix-fe-reviewer/              # Review others' phoenix-fe PRs
 ├── phoenix-dev-testing/               # Repeatable dev test rounds
 ├── phoenix-git-workflow/              # Branch, commit, draft PR, ready-for-review
 └── resolve-review-comments/           # Address PR review feedback
@@ -89,6 +90,8 @@ Use **`@phoenix-worker`** for the full lifecycle. Say up front whether the work 
 | 6 | Dev testing (repeatable) | `phoenix-dev-testing` | Per repo in scope |
 | 7 | Git / PR | `phoenix-git-workflow` | Per repo in scope |
 | 8 | Review comments | `resolve-review-comments` | Repo with open PR |
+
+**Reviewing someone else's FE PR** (not your own feedback loop): use `phoenix-fe-reviewer` with `phoenix-fe` open or a PR number.
 
 Phases 6 and 7 can overlap (e.g. draft PR first, then test on dev/staging). The **full PR description** is written only when marking **ready for review**, after dev testing sign-off—not on every push.
 
@@ -122,7 +125,8 @@ You do not need the full worker lifecycle. Typical pattern:
 2. `@phoenix-git-workflow` for branch/PR conventions
 3. Repo-specific skills as needed (`phoenix-fe-feature`, `phoenix-scss` for FE)
 4. `@phoenix-dev-testing` if the change needs a structured test pass
-5. `@resolve-review-comments` when addressing PR feedback
+5. `@resolve-review-comments` when addressing PR feedback on your PR
+6. `@phoenix-fe-reviewer` when reviewing someone else's `phoenix-fe` PR
 
 ### Dev testing mid-flight
 
@@ -155,9 +159,10 @@ Dev testing passed. Write full PR description once, then mark ready for review.
 | **phoenix-feature-implementation** | Write code from an enriched plan |
 | **phoenix-fe-feature** | FE folder structure, hooks, context, integration tests |
 | **phoenix-scss** | CSS/SCSS changes in `phoenix-fe` |
+| **phoenix-fe-reviewer** | Review others' `phoenix-fe` PRs (standards, intended outcome, shared-component risk) |
 | **phoenix-dev-testing** | Structured dev test rounds and sign-off |
 | **phoenix-git-workflow** | Branch from release, commits, draft PR, ready-for-review |
-| **resolve-review-comments** | Triage and fix PR review comments one by one |
+| **resolve-review-comments** | Triage and fix PR review comments one by one (author) |
 
 Each skill’s full rules live in its `SKILL.md` (e.g. `phoenix-worker/SKILL.md`).
 
