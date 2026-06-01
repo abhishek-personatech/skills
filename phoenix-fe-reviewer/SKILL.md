@@ -3,10 +3,12 @@ name: phoenix-fe-reviewer
 description: >-
   Read-only review of others' phoenix-fe pull requests: verify PR stated goals
   (feature/bugfix/task) are met, prior review comments addressed, CLAUDE.md
-  standards, improvements/optimizations, regression risk. Post review feedback
-  only — never implement fixes unless explicitly asked. Use when reviewing
-  others' PRs, FE code review, or when the user says phoenix-fe-reviewer,
-  review this PR, or @phoenix-fe-reviewer.
+  standards, improvements/optimizations, regression risk. On GitHub, always use
+  short inline comments on the relevant lines plus a brief positive summary;
+  always confirm with the user before posting to GitHub. Never implement fixes
+  unless explicitly asked. Use when reviewing others' PRs,
+  FE code review, or when the user says phoenix-fe-reviewer, review this PR,
+  or @phoenix-fe-reviewer.
 disable-model-invocation: true
 ---
 
@@ -27,7 +29,7 @@ You review **someone else's** `phoenix-fe` pull request. You are a **reviewer**,
 | **Optimizations** — Call out refetch vs cache, unnecessary re-renders, duplicate code, over-broad shared changes | Yes |
 | **Risk** — Shared components, global styles, cross-app blast radius | Yes |
 | **Verdict** — Approve / request changes / questions, with severity | Yes |
-| **GitHub** — Draft or post PR review comments **only when the user asks** | On request |
+| **GitHub** — Draft inline comments + short summary; **confirm with user before posting** | Only after explicit approval |
 
 ### What you must NOT do (unless the user explicitly asks)
 
@@ -77,7 +79,7 @@ FE PR review:
 - [ ] 6. Shared / cross-feature — regression and consumer impact
 - [ ] 7. Reuse — no duplicate components or utils
 - [ ] 8. Improvements & optimizations — suggestions only (no implementation)
-- [ ] 9. Verdict — structured report (+ GitHub post if asked)
+- [ ] 9. Verdict — structured report in chat (+ GitHub inline review if asked)
 ```
 
 ### 0) Enforce read-only mode
@@ -242,10 +244,115 @@ Label these **🟡 Suggestions** unless they block the stated PR goal — then *
 
 ## Posting to GitHub
 
-- Draft review in chat first unless the user only wants a posted review.
-- Post with `gh pr review` **only when the user explicitly asks** (e.g. "post the comments", "submit review").
-- Use `--request-changes`, `--comment`, or `--approve` to match the verdict.
-- Optional: per-thread replies on inline comments when the user wants full thread closure — still **no code changes**.
+### Confirm before posting (required)
+
+**Never** call `gh pr review`, `gh api …/reviews`, or post inline/summary comments until the user has **explicitly approved** the draft.
+
+1. Complete the review in chat (and optional full structured report).
+2. When posting is appropriate, show a **draft** of:
+   - the **summary body** (exact text), and
+   - each **inline comment** (file, line, full body).
+3. Ask the user to confirm (e.g. "Post these comments?" / "Any edits before I submit?").
+4. Post **only** after they say yes (or after they edit and approve).
+
+If the user says "post inline comments" without seeing a draft first, still show the draft and wait for confirmation — unless they clearly mean "use the draft you already showed me, go ahead."
+
+### When to post
+
+Post with `gh pr review` / review API **only when** the user wants feedback on GitHub (e.g. "post the review", "submit comments") **and** has confirmed the draft. When posting, **always** use inline comments — never put detailed findings only in the review body.
+
+### Two-part review (required on GitHub)
+
+| Part | Where | Content |
+|------|--------|---------|
+| **Summary** | Review body (`body`) | 1–3 short sentences. Positive, collaborative. Point to inline threads — **no** numbered issue lists, skill quotes, or long explanations. |
+| **Actionable feedback** | **Inline comments** (`comments[]`) | One thread per finding, on the **exact line** in the diff. Short heading + concrete suggestion. |
+
+Use `--request-changes`, `--comment`, or `--approve` to match the verdict.
+
+### Summary body — tone and length
+
+**Do:** brief encouragement + verdict + "see inline comments" (optional: "few improvement areas").
+
+**Do not:** meta labels ("Issue 1–4", "testing-skill alignment"), test counts, repeated inline detail, or pasted skill/rule text.
+
+**Good:**
+
+```text
+Overall this is a strong test batch. Few improvement areas — see inline comments.
+```
+
+```text
+Looks good and matches the ticket. A couple of small suggestions inline; happy to approve after those are considered.
+```
+
+**Bad:**
+
+```text
+Inline notes on testing-skill alignment (issues 1–4). Overall this is a strong test batch — 196 tests passing and good structure. The comments below are suggestions to increase confidence in real user/API behavior.
+```
+
+The **chat** review can stay detailed (intent matrix, tables, severity). The **GitHub** body stays generic; depth lives in inline threads.
+
+### Inline comments — format and tone
+
+**Goal:** short, actionable, positive, collaborative — like a helpful teammate, not an audit report.
+
+**Structure (each comment):**
+
+1. **Heading** — plain title only (no `Issue 1 —`, no emoji severity prefixes unless the user asked for them).
+2. **Suggestion** — 1–4 sentences: what to change and why, in plain language. Optional one-line example or file pointer if it helps.
+
+**Do not** in inline comments:
+
+- Number findings (`Issue 1`, `Issue 2`, …)
+- Paste long quotes from `CLAUDE.md` or child skills (apply the rule; don't cite the doc)
+- Repeat the full chat review or list every related file in one giant comment (split into separate threads on the right lines)
+- Use harsh or blocking language for non-blocking nits
+
+**Good:**
+
+```text
+**Prefer HTTP assertions over mocking dataloaders**
+
+This service test mocks the whole dataloader module. Consider using `mockPost` / `mockGet` and asserting `mock.history` instead — same pattern as `couponCodeFlow.test.tsx`. Happy to pair on it if useful.
+```
+
+**Bad:**
+
+```text
+**Issue 1 — Prefer HTTP assertions over mocking dataloaders**
+
+Per `.cursor/skills/testing/SKILL.md`: "For hooks that perform HTTP requests, don't mock the dataloader—assert the HTTP call."
+
+This file mocks the entire buyUnscheduledMutualMatchess/dataloader module ...
+```
+
+### How to post (inline review API)
+
+1. Get `headRefOid` from `gh pr view <n> --json headRefOid`.
+2. One inline comment per finding; anchor each to the relevant `path` + `line` on the PR diff (`side: "RIGHT"` for new/changed lines).
+3. Submit a single review with `body` + `comments` array:
+
+```bash
+gh api repos/personatech-infra/phoenix-fe/pulls/<n>/reviews --method POST --input - <<'EOF'
+{
+  "commit_id": "<headRefOid>",
+  "event": "COMMENT",
+  "body": "Overall this is a strong test batch. Few improvement areas — see inline comments.",
+  "comments": [
+    {
+      "path": "src/.../file.ts",
+      "line": 42,
+      "side": "RIGHT",
+      "body": "**Short heading**\n\nConcrete suggestion in 1–3 sentences."
+    }
+  ]
+}
+EOF
+```
+
+Still **no code changes** on the PR branch when reviewing.
 
 ## Optional deep checklist
 

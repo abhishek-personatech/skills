@@ -159,7 +159,7 @@ Dev testing passed. Write full PR description once, then mark ready for review.
 | **phoenix-feature-implementation** | Write code from an enriched plan |
 | **phoenix-fe-feature** | FE folder structure, hooks, context, integration tests |
 | **phoenix-scss** | CSS/SCSS changes in `phoenix-fe` |
-| **phoenix-fe-reviewer** | Read-only review of others' PRs: stated goal met, prior comments, standards, improvements (no implementation) |
+| **phoenix-fe-reviewer** | Read-only review of others' PRs: intent + standards; on GitHub, short summary + inline comments (no implementation) |
 | **phoenix-dev-testing** | Structured dev test rounds and sign-off |
 | **phoenix-git-workflow** | Branch from release, commits, draft PR, ready-for-review |
 | **resolve-review-comments** | Triage and fix PR review comments one by one (author) |

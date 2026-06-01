@@ -125,7 +125,7 @@ Read-only review — do not edit or commit code.
 2. Were my prior review comments addressed (if any)?
 3. CLAUDE.md + phoenix-fe-feature / phoenix-scss / testing for touched areas.
 4. Suggest improvements and optimizations in review text only.
-5. Post to GitHub only if I ask.
+5. Post to GitHub only if I ask — show draft inline comments + summary first; confirm with me before submitting (see phoenix-fe-reviewer skill).
 ```
 
 Optional deep checklist: `~/.cursor/skills/phoenix-fe-reviewer/review-checklist.md`

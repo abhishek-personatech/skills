@@ -95,6 +95,16 @@ Use with [SKILL.md](SKILL.md). **`CLAUDE.md` in `phoenix-fe` is authoritative** 
 - [ ] Critical edge paths covered (empty data, retry, gated UI)
 - [ ] CI / author notes which tests were run
 
+## GitHub post (when user asks to submit review)
+
+- [ ] Draft summary body + all inline comments shown in chat **before** posting
+- [ ] User **explicitly confirmed** ("post it", "looks good", etc.) — not assumed from "review this PR"
+- [ ] Every actionable finding has its **own inline comment** on the relevant line (not only in the review body)
+- [ ] Review **body** is 1–3 short, positive sentences (no "Issue 1–4", no skill quotes, no duplicated inline detail)
+- [ ] Each inline comment: **heading only** (no issue numbers) + short **suggestion**; collaborative tone
+- [ ] No long pasted text from `CLAUDE.md` or testing/feature skills in inline threads
+- [ ] `event` matches verdict (`APPROVE` / `COMMENT` / `REQUEST_CHANGES`)
+
 ## Merge gate
 
 - [ ] **Intent** Met or Partially met with agreed follow-ups — not Not met
